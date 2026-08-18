@@ -1,0 +1,7 @@
+/build
+/dist
+/plugin.so
+/plugin.dylib
+/plugin.dll
+/compile_commands.json
+.DS_Store
