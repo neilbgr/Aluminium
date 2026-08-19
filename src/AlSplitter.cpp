@@ -2,7 +2,9 @@
 #include "PanelTheme.hpp"
 #include "AlPanel.hpp"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstdlib>
 
 // Splits a polyphonic MIDI-CV stream (V/OCT, GATE, VEL, AFT, RTRG — the poly
 // outputs of Rack's core MIDI-CV module) into two note-range zones (A = below
@@ -27,6 +29,78 @@
 // intentionally out of scope here — patch them directly from the MIDI-CV
 // module to wherever they're needed. Portamento/glide is also out of scope —
 // patch a Slew module after this one's MONO outputs if glide is wanted.
+
+static const char* NOTE_NAMES[12] = {
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+};
+
+// 0V = C4, matching the module's own note-name readout below.
+static std::string voltageToNoteName(float voltage) {
+    int totalSemi = (int)std::round(voltage * 12.f);
+    int octaveOffset = (int)std::floor(totalSemi / 12.f);
+    int noteIndex = totalSemi - octaveOffset * 12;
+    int octave = 4 + octaveOffset;
+    return std::string(NOTE_NAMES[noteIndex]) + std::to_string(octave);
+}
+
+// Parses note names ("C4", "c#4", "Db-1", "A#3", ...) into a V/OCT voltage.
+// Returns false, leaving *voltage untouched, if s isn't a recognizable note
+// name (letter A-G, optional #/b accidentals, octave number) — the caller
+// falls back to plain numeric voltage parsing in that case.
+static bool noteNameToVoltage(const std::string& s, float* voltage) {
+    size_t i = 0;
+    while (i < s.size() && std::isspace((unsigned char)s[i]))
+        i++;
+    if (i >= s.size())
+        return false;
+
+    char letter = std::toupper((unsigned char)s[i]);
+    static const int semitoneOfLetter[7] = {9, 11, 0, 2, 4, 5, 7}; // A..G
+    if (letter < 'A' || letter > 'G')
+        return false;
+    int semitone = semitoneOfLetter[letter - 'A'];
+    i++;
+
+    while (i < s.size() && (s[i] == '#' || s[i] == 'b' || s[i] == 'B')) {
+        semitone += (s[i] == '#') ? 1 : -1;
+        i++;
+    }
+
+    while (i < s.size() && std::isspace((unsigned char)s[i]))
+        i++;
+    if (i >= s.size())
+        return false;
+
+    const char* start = s.c_str() + i;
+    char* end = nullptr;
+    long octave = std::strtol(start, &end, 10);
+    if (end == start)
+        return false;
+    while (*end && std::isspace((unsigned char)*end))
+        end++;
+    if (*end != '\0')
+        return false;
+
+    int totalSemi = semitone + (int)(octave - 4) * 12;
+    *voltage = totalSemi / 12.f;
+    return true;
+}
+
+// Lets the SPLIT_PARAM knob's right-click text field (and its tooltip) be
+// read/typed as a note name ("C4") instead of a raw V/OCT voltage.
+struct SplitParamQuantity : ParamQuantity {
+    std::string getDisplayValueString() override {
+        return voltageToNoteName(getValue());
+    }
+
+    void setDisplayValueString(std::string s) override {
+        float v;
+        if (noteNameToVoltage(s, &v))
+            setValue(math::clamp(v, getMinValue(), getMaxValue()));
+        else
+            ParamQuantity::setDisplayValueString(s);
+    }
+};
 
 struct AlSplitter : Module {
     enum ParamIds {
@@ -93,11 +167,16 @@ struct AlSplitter : Module {
     // Per input-channel state.
     int channelZone[16];         // -1 = unclassified, 0 = A, 1 = B
     bool prevGateHigh[16];
+    // True for the specific channel whose note-on was consumed to set the
+    // split point via LEARN — that note itself never plays through (only
+    // notes played after LEARN turns off do), so it stays excluded from
+    // topOf()/passthrough until its own note-off releases the channel.
+    bool learnSuppressed[16];
     dsp::SchmittTrigger rtrgTrigger[16];
 
     AlSplitter() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
-        configParam(SPLIT_PARAM, -4.f, 4.f, 0.f, "Split point", " V");
+        configParam<SplitParamQuantity>(SPLIT_PARAM, -4.f, 4.f, 0.f, "Split point");
         configSwitch(LEARN_PARAM, 0.f, 1.f, 0.f, "Learn split point", {"Idle", "Listening for next note"});
         configSwitch(ZONE_A_MODE_PARAM, 0.f, 1.f, MODE_POLY, "Zone A mode", {"Polyphonic", "Monophonic"});
         configSwitch(ZONE_B_MODE_PARAM, 0.f, 1.f, MODE_POLY, "Zone B mode", {"Polyphonic", "Monophonic"});
@@ -126,6 +205,7 @@ struct AlSplitter : Module {
         for (int c = 0; c < 16; c++) {
             channelZone[c] = -1;
             prevGateHigh[c] = false;
+            learnSuppressed[c] = false;
         }
         zoneA.held.clear();
         zoneB.held.clear();
@@ -140,29 +220,30 @@ struct AlSplitter : Module {
     }
 
     // Selects which held channel is currently "on top" (audible) for a zone,
-    // per its priority rule. Returns -1 if the zone has no held notes.
+    // per its priority rule. Returns -1 if the zone has no (non-suppressed)
+    // held notes.
     int topOf(const Zone& zone) {
-        if (zone.held.empty())
-            return -1;
         switch (zone.priority) {
-            case PRIORITY_LAST:
-                return zone.held.back();
-            case PRIORITY_HIGH: {
-                int best = zone.held[0];
-                for (int c : zone.held)
-                    if (inputs[PITCH_INPUT].getVoltage(c) > inputs[PITCH_INPUT].getVoltage(best))
-                        best = c;
-                return best;
-            }
+            case PRIORITY_HIGH:
             case PRIORITY_LOW: {
-                int best = zone.held[0];
-                for (int c : zone.held)
-                    if (inputs[PITCH_INPUT].getVoltage(c) < inputs[PITCH_INPUT].getVoltage(best))
+                int best = -1;
+                for (int c : zone.held) {
+                    if (learnSuppressed[c])
+                        continue;
+                    bool better = (best < 0)
+                        || (zone.priority == PRIORITY_HIGH
+                            ? inputs[PITCH_INPUT].getVoltage(c) > inputs[PITCH_INPUT].getVoltage(best)
+                            : inputs[PITCH_INPUT].getVoltage(c) < inputs[PITCH_INPUT].getVoltage(best));
+                    if (better)
                         best = c;
+                }
                 return best;
             }
-            default:
-                return zone.held.back();
+            default: // PRIORITY_LAST
+                for (auto it = zone.held.rbegin(); it != zone.held.rend(); ++it)
+                    if (!learnSuppressed[*it])
+                        return *it;
+                return -1;
         }
     }
 
@@ -212,15 +293,22 @@ struct AlSplitter : Module {
             bool needsClassification = gateHigh && channelZone[c] < 0;
 
             if (rtrgFired || needsClassification) {
+                bool isLearnNote = false;
                 if (learnArmed) {
                     threshold = pitch;
                     params[SPLIT_PARAM].setValue(pitch);
                     params[LEARN_PARAM].setValue(0.f);
                     learnArmed = false;
+                    isLearnNote = true;
                 }
                 int zone = (pitch >= threshold) ? 1 : 0;
                 Zone& z = zoneOf(zone);
                 classify(c, zone);
+                // The note that just set the split point stays excluded from
+                // topOf()/passthrough (see learnSuppressed) until its own
+                // note-off — only notes played after LEARN turns off actually
+                // reach the outputs.
+                learnSuppressed[c] = isLearnNote;
                 if (rtrgFired && topOf(z) == c) {
                     z.retrigPulse.trigger(1e-3f);
                 }
@@ -236,10 +324,28 @@ struct AlSplitter : Module {
         lights[ZONE_A_MODE_LIGHT].setBrightness(zoneAMode == MODE_MONO ? 1.f : 0.f);
         lights[ZONE_B_MODE_LIGHT].setBrightness(zoneBMode == MODE_MONO ? 1.f : 0.f);
 
-        processZone(zoneA, zoneAMode, channels, args.sampleTime,
-            ZONE_A_PITCH_OUTPUT, ZONE_A_GATE_OUTPUT, ZONE_A_VEL_OUTPUT, ZONE_A_AFT_OUTPUT, ZONE_A_RTRIG_OUTPUT, 0);
-        processZone(zoneB, zoneBMode, channels, args.sampleTime,
-            ZONE_B_PITCH_OUTPUT, ZONE_B_GATE_OUTPUT, ZONE_B_VEL_OUTPUT, ZONE_B_AFT_OUTPUT, ZONE_B_RTRIG_OUTPUT, 1);
+        // While LEARN is armed, hold every output silent — `learnArmed` was
+        // already cleared above the moment a note lands and sets the split
+        // point, so that same note's classification plays through normally
+        // in this same sample rather than being swallowed too.
+        if (learnArmed) {
+            muteZoneOutputs(ZONE_A_PITCH_OUTPUT, ZONE_A_GATE_OUTPUT, ZONE_A_VEL_OUTPUT, ZONE_A_AFT_OUTPUT, ZONE_A_RTRIG_OUTPUT);
+            muteZoneOutputs(ZONE_B_PITCH_OUTPUT, ZONE_B_GATE_OUTPUT, ZONE_B_VEL_OUTPUT, ZONE_B_AFT_OUTPUT, ZONE_B_RTRIG_OUTPUT);
+        }
+        else {
+            processZone(zoneA, zoneAMode, channels, args.sampleTime,
+                ZONE_A_PITCH_OUTPUT, ZONE_A_GATE_OUTPUT, ZONE_A_VEL_OUTPUT, ZONE_A_AFT_OUTPUT, ZONE_A_RTRIG_OUTPUT, 0);
+            processZone(zoneB, zoneBMode, channels, args.sampleTime,
+                ZONE_B_PITCH_OUTPUT, ZONE_B_GATE_OUTPUT, ZONE_B_VEL_OUTPUT, ZONE_B_AFT_OUTPUT, ZONE_B_RTRIG_OUTPUT, 1);
+        }
+    }
+
+    void muteZoneOutputs(int pitchOut, int gateOut, int velOut, int aftOut, int rtrigOut) {
+        outputs[pitchOut].setChannels(0);
+        outputs[gateOut].setChannels(0);
+        outputs[velOut].setChannels(0);
+        outputs[aftOut].setChannels(0);
+        outputs[rtrigOut].setChannels(0);
     }
 
     void processZone(Zone& zone, int mode, int channels, float sampleTime,
@@ -271,7 +377,7 @@ struct AlSplitter : Module {
             outputs[rtrigOut].setChannels(channels);
 
             for (int c = 0; c < channels; c++) {
-                bool belongs = (channelZone[c] == zoneIndex);
+                bool belongs = (channelZone[c] == zoneIndex) && !learnSuppressed[c];
                 outputs[pitchOut].setVoltage(inputs[PITCH_INPUT].getVoltage(c), c);
                 outputs[velOut].setVoltage(inputs[VEL_INPUT].getVoltage(c), c);
                 outputs[aftOut].setVoltage(inputs[AFT_INPUT].getVoltage(c), c);
@@ -304,10 +410,6 @@ struct AlSplitter : Module {
 struct SplitNoteDisplay : TransparentWidget {
     AlSplitter* module;
 
-    static constexpr const char* NOTE_NAMES[12] = {
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
-    };
-
     SplitNoteDisplay(AlSplitter* module, Vec size) : module(module) {
         box.size = size;
     }
@@ -321,13 +423,9 @@ struct SplitNoteDisplay : TransparentWidget {
         nvgStroke(args.vg);
 
         float voltage = module ? module->params[AlSplitter::SPLIT_PARAM].getValue() : 0.f;
-        int totalSemi = (int)std::round(voltage * 12.f);
-        int octaveOffset = (int)std::floor(totalSemi / 12.f);
-        int noteIndex = totalSemi - octaveOffset * 12;
-        int octave = 4 + octaveOffset;
         float freq = dsp::FREQ_C4 * std::pow(2.f, voltage);
 
-        std::string noteStr = std::string(NOTE_NAMES[noteIndex]) + std::to_string(octave);
+        std::string noteStr = voltageToNoteName(voltage);
         std::string freqStr = string::f(freq >= 1000.f ? "%.0f Hz" : "%.1f Hz", freq);
 
         std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
@@ -346,12 +444,10 @@ struct SplitNoteDisplay : TransparentWidget {
     }
 };
 
-constexpr const char* SplitNoteDisplay::NOTE_NAMES[12];
-
 struct AlSplitterWidget : ModuleWidget {
     AlSplitterWidget(AlSplitter* module) {
         setModule(module);
-        setPanel(new AlPanel(mm2px(Vec(60.96f, 128.5f)),
+        setPanel(new AlPanel(mm2px(Vec(55.88f, 128.5f)),
             Svg::load(asset::plugin(pluginInstance, "res/AlSplitter_Silk_Light.svg")),
             Svg::load(asset::plugin(pluginInstance, "res/AlSplitter_Silk_Dark.svg"))));
 
@@ -360,7 +456,7 @@ struct AlSplitterWidget : ModuleWidget {
         addChild(createWidget<AlScrewComponent>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-        // Placeholder coordinates — panel layout WIP in Inkscape. Grid: 12HP
+        // Placeholder coordinates — panel layout WIP in Inkscape. Grid: 11HP
         // wide, 4 columns, 8 rows (row 1 spans 2 row-heights for the knob +
         // split display). "Text" cells below are silkscreen labels, drawn on
         // the sérigraphie SVG layer, not runtime widgets — listed here only
@@ -368,22 +464,30 @@ struct AlSplitterWidget : ModuleWidget {
         // col2 (24mm) carries no runtime widget — every row's 2nd column is
         // a silkscreen label ("Split", "Learn", "V/Oct", ...), not listed
         // here since it lives on the sérigraphie SVG layer, not in code.
-        const float col1 = 9.f, col3 = 39.f, col4 = 54.f;
-        const float row1 = 30.f, row2 = 48.f, row3 = 60.f, row4 = 72.f;
-        const float row5 = 84.f, row6 = 96.f, row7 = 108.f, row8 = 120.f;
-
-        // Row 1 (span 2): SPLIT_PARAM | "Split" | splitNoteDisplay (col3+col4)
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(col1, row1)), module, AlSplitter::SPLIT_PARAM));
-        // col2: "Split" (silkscreen)
+        // Columns are no longer evenly spaced: col1/col3/col4 only need to
+        // clear a knob/port, but col2 has to fit its longest label
+        // ("Aftertouch", measured ~19.1mm in the silkscreen artwork) plus a
+        // little breathing room on each side. col3/col4 already reflect that
+        // (col2-col3 widened to 16.5mm for the label, col3-col4 tightened to
+        // 10.5mm since it's just port-to-port) — kept as-is from the 12HP
+        // layout. The panel's 1HP reduction comes entirely out of the right
+        // margin instead (was 9.96mm at 12HP, now 4.88mm at 11HP).
+        const float col1 = 8.f, col3 = 39.f, col4 = 50.f;
+        const float row2 = 48.f, row3 = 59.f, row4 = 70.f;
+        const float row5 = 81.f, row6 = 92.f, row7 = 103.f, row8 = 114.f;
+ 
+        const float displayCenterX = 55.88f / 2.f;
+        // "Split" (silkscreen)
         {
-            Vec size = mm2px(Vec(26.f, 18.f));
+            Vec size = mm2px(Vec(24.f, 15.f));
             auto* display = new SplitNoteDisplay(module, size);
-            display->box.pos = mm2px(Vec((col3 + col4) / 2.f, row1)).minus(size.div(2));
+            display->box.pos = mm2px(Vec(displayCenterX, 20.f)).minus(size.div(2));
             addChild(display);
         }
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(displayCenterX, 36.f)), module, AlSplitter::SPLIT_PARAM));
 
         // Row 2: LEARN_PARAM | "Learn" | "A" | "B"
-        addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<GreenLight>>>(
+        addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<RedLight>>>(
             mm2px(Vec(col1, row2)), module, AlSplitter::LEARN_PARAM, AlSplitter::LEARN_LIGHT));
         // col2: "Learn", col3: "A", col4: "B" (silkscreen)
 
@@ -413,9 +517,9 @@ struct AlSplitterWidget : ModuleWidget {
         addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col4, row7)), module, AlSplitter::ZONE_B_RTRIG_OUTPUT));
 
         // Row 8: (empty) | "Mono" | ZONE_A_MODE_PARAM | ZONE_B_MODE_PARAM
-        addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<GreenLight>>>(
+        addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(
             mm2px(Vec(col3, row8)), module, AlSplitter::ZONE_A_MODE_PARAM, AlSplitter::ZONE_A_MODE_LIGHT));
-        addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<GreenLight>>>(
+        addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(
             mm2px(Vec(col4, row8)), module, AlSplitter::ZONE_B_MODE_PARAM, AlSplitter::ZONE_B_MODE_LIGHT));
     }
 
