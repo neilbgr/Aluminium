@@ -85,13 +85,13 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="2.3498919"
-     inkscape:cx="-2.9788604"
-     inkscape:cy="258.52253"
+     inkscape:zoom="1.174946"
+     inkscape:cx="75.748165"
+     inkscape:cy="258.30975"
      inkscape:window-width="1920"
-     inkscape:window-height="1057"
-     inkscape:window-x="4472"
-     inkscape:window-y="233"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg1" />
   <!-- Placeholder silkscreen (dark theme): empty, no artwork yet. -->
@@ -280,4 +280,11 @@
        transform="matrix(0.26458333,0,0,0.26458333,6.9961662,5.4523307)"
        aria-label="Aluminium" />
   </g>
+  <rect
+     style="opacity:0.5;fill:none;stroke:#808080;stroke-width:0.264583;stroke-dasharray:none;stroke-opacity:1"
+     id="rect2"
+     width="55.615417"
+     height="128.23541"
+     x="0.1322915"
+     y="0.1322915" />
 </svg>

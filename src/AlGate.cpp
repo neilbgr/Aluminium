@@ -1,0 +1,365 @@
+#include "plugin.hpp"
+#include "PanelTheme.hpp"
+#include "AlPanel.hpp"
+#include "AlGateExpander.hpp"
+#include <algorithm>
+#include <cmath>
+
+// Like Cardinal/Rack core's "MIDI-Gate" (18 gate outputs, one per learned
+// note, driven by MIDI note-on/off) but driven instead by a polyphonic
+// V/OCT + GATE cable (typically from Core MIDI-CV or AlSplitter) — 16 gate
+// outputs, one per learned note. Each output is high whenever any incoming
+// poly channel currently carries that exact pitch with its gate high.
+//
+// A note is (re)learned either by clicking its display cell and then
+// playing the note on the incoming poly cable, or by clicking the cell and
+// typing a note name directly (letter A-G, optional #, octave digit, Enter
+// to commit) — mirrors HostMIDI-Gate.cpp's CardinalNoteChoice exactly, just
+// adapted to one shared 2x8 grid widget with manual mouse hit-testing
+// instead of 16 separate LedDisplayChoice widgets. Backspace/Delete clears
+// a cell (shows "--", that output stays low).
+//
+// AlVelocity/AlAftertouch/AlRetrigger (separate expander modules) read
+// which poly channel is currently satisfying each of these 16 cells via
+// AlGateExpanderMessage, so they can mirror the same note->channel mapping
+// onto a different signal lane without duplicating the note-learning UI.
+
+static const char* AL_GATE_NOTE_NAMES[12] = {
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+};
+
+static std::string alGateNoteName(int8_t note) {
+    if (note < 0)
+        return "--";
+    int oct = note / 12 - 1;
+    int semi = note % 12;
+    return std::string(AL_GATE_NOTE_NAMES[semi]) + std::to_string(oct);
+}
+
+struct AlGate : Module {
+    enum ParamIds {
+        NUM_PARAMS
+    };
+    enum InputIds {
+        PITCH_INPUT,
+        GATE_INPUT,
+        NUM_INPUTS
+    };
+    enum OutputIds {
+        ENUMS(GATE_OUTPUTS, 16),
+        NUM_OUTPUTS
+    };
+    enum LightIds {
+        NUM_LIGHTS
+    };
+
+    // -1 = unassigned ("--", cell always outputs 0V).
+    int8_t learnedNotes[16];
+    // -1 = not learning; id of the cell awaiting its next played/typed note otherwise.
+    int learningId = -1;
+    bool prevGateHigh[16] = {};
+
+    AlGateExpanderMessage expMsg = {};
+
+    AlGate() {
+        config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
+        configInput(PITCH_INPUT, "V/OCT (poly, from MIDI-CV)");
+        configInput(GATE_INPUT, "Gate (poly, from MIDI-CV)");
+        for (int id = 0; id < 16; id++)
+            configOutput(GATE_OUTPUTS + id, string::f("Gate %d", id + 1));
+
+        onReset();
+    }
+
+    void onReset() override {
+        for (int id = 0; id < 16; id++)
+            learnedNotes[id] = 36 + id;
+        learningId = -1;
+        for (int c = 0; c < 16; c++)
+            prevGateHigh[c] = false;
+    }
+
+    static int noteOf(float voltage) {
+        return 60 + (int)std::round(voltage * 12.f);
+    }
+
+    // Mirrors HostMIDI-Gate.cpp's own setLearnedNote(): unset any other cell
+    // currently holding `note` before assigning it to `id`, so a note is
+    // never mapped to two cells at once.
+    void setLearnedNote(int id, int8_t note) {
+        if (note >= 0) {
+            for (int i = 0; i < 16; i++)
+                if (learnedNotes[i] == note)
+                    learnedNotes[i] = -1;
+        }
+        learnedNotes[id] = note;
+    }
+
+    void process(const ProcessArgs&) override {
+        int channels = std::min(inputs[PITCH_INPUT].getChannels(), 16);
+
+        for (int id = 0; id < 16; id++) {
+            bool matched = false;
+            int matchedChannel = -1;
+
+            if (learnedNotes[id] >= 0) {
+                for (int c = 0; c < channels; c++) {
+                    bool gateHigh = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
+                    if (gateHigh && noteOf(inputs[PITCH_INPUT].getVoltage(c)) == learnedNotes[id]) {
+                        matched = true;
+                        matchedChannel = c;   // last matching channel wins if 2+ channels share a pitch
+                    }
+                }
+            }
+
+            outputs[GATE_OUTPUTS + id].setChannels(1);
+            outputs[GATE_OUTPUTS + id].setVoltage(matched ? 10.f : 0.f);
+            expMsg.activeChannel[id] = (int8_t) matchedChannel;
+        }
+
+        // Learn: on any channel's gate rising edge, if a cell is armed, assign it that note.
+        for (int c = 0; c < channels; c++) {
+            bool gateHigh = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
+            if (gateHigh && !prevGateHigh[c] && learningId >= 0) {
+                setLearnedNote(learningId, (int8_t) noteOf(inputs[PITCH_INPUT].getVoltage(c)));
+                learningId = -1;
+            }
+            prevGateHigh[c] = gateHigh;
+        }
+        // Channels beyond the current poly width can't have a tracked previous
+        // state — clear it so a later channel-count increase isn't seen as a
+        // spurious rising edge.
+        for (int c = channels; c < 16; c++)
+            prevGateHigh[c] = false;
+
+        if (rightExpander.module && alGateIsExpanderModel(rightExpander.module->model))
+            alGateForwardMessage(this, expMsg);
+    }
+
+    json_t* dataToJson() override {
+        json_t* rootJ = json_object();
+        json_t* notesJ = json_array();
+        for (int id = 0; id < 16; id++)
+            json_array_append_new(notesJ, json_integer(learnedNotes[id]));
+        json_object_set_new(rootJ, "notes", notesJ);
+        return rootJ;
+    }
+
+    void dataFromJson(json_t* rootJ) override {
+        if (json_t* notesJ = json_object_get(rootJ, "notes")) {
+            for (int id = 0; id < 16; id++) {
+                if (json_t* noteJ = json_array_get(notesJ, id))
+                    learnedNotes[id] = (int8_t) json_integer_value(noteJ);
+                else
+                    learnedNotes[id] = -1;
+            }
+        }
+    }
+};
+
+#ifndef HEADLESS
+// One shared widget for the whole 2x8 grid (column-major id = col*8+row,
+// same indexing convention as HostMIDI-Gate.cpp's 3x6 grid, just 2x8), with
+// the cell hit-tested directly from mouse position inside onButton() rather
+// than delegating to 16 separate LedDisplayChoice children (confirmed
+// pattern: voxglitch's CellularAutomatonDisplay::getRowAndColumnFromVec).
+// Also supports HostMIDI-Gate.cpp's typed-note-name / clear-cell editing
+// (CardinalNoteChoice::onSelectText/onSelectKey/onDeselect), adapted to one
+// widget tracking a single "selected" cell instead of 16 widgets each
+// tracking their own.
+struct AlGateNoteGridDisplay : OpaqueWidget {
+    AlGate* module;
+    int selectedId = -1;
+    int8_t focusNote = -1;
+
+    AlGateNoteGridDisplay(AlGate* module, Vec size) : module(module) {
+        box.size = size;
+    }
+
+    int idFromPos(Vec pos) {
+        int col = (int) (pos.x / (box.size.x / 2.f));
+        int row = (int) (pos.y / (box.size.y / 8.f));
+        col = math::clamp(col, 0, 1);
+        row = math::clamp(row, 0, 7);
+        return col * 8 + row;
+    }
+
+    void onButton(const ButtonEvent& e) override {
+        if (module == nullptr || e.button != GLFW_MOUSE_BUTTON_LEFT || e.action != GLFW_PRESS) {
+            OpaqueWidget::onButton(e);
+            return;
+        }
+
+        int id = idFromPos(e.pos);
+        if (module->learningId == id) {
+            // Click the already-armed cell again to cancel learn.
+            module->learningId = -1;
+        }
+        else {
+            selectedId = id;
+            focusNote = -1;
+            module->learningId = id;
+            APP->event->setSelectedWidget(this);
+        }
+        e.consume(this);
+    }
+
+    void onSelectText(const SelectTextEvent& e) override {
+        if (selectedId < 0)
+            return;
+
+        const int c = e.codepoint;
+        if ('a' <= c && c <= 'g') {
+            static const int majorNotes[7] = {9, 11, 0, 2, 4, 5, 7};
+            focusNote = majorNotes[c - 'a'];
+        }
+        else if (c == '#') {
+            if (focusNote >= 0)
+                focusNote += 1;
+        }
+        else if ('0' <= c && c <= '9') {
+            if (focusNote >= 0) {
+                focusNote = focusNote % 12;
+                focusNote += 12 * (c - '0' + 1);
+            }
+        }
+
+        if (focusNote < 0)
+            focusNote = -1;
+
+        e.consume(this);
+    }
+
+    void onSelectKey(const SelectKeyEvent& e) override {
+        if (selectedId < 0 || e.action != GLFW_PRESS) {
+            OpaqueWidget::onSelectKey(e);
+            return;
+        }
+
+        if (e.key == GLFW_KEY_ENTER || e.key == GLFW_KEY_KP_ENTER) {
+            if (e.mods & RACK_MOD_MASK) {
+                OpaqueWidget::onSelectKey(e);
+                return;
+            }
+            if (focusNote >= 0)
+                module->setLearnedNote(selectedId, focusNote);
+            APP->event->setSelectedWidget(NULL);
+            e.consume(this);
+        }
+        else if (e.key == GLFW_KEY_BACKSPACE || e.key == GLFW_KEY_DELETE) {
+            module->setLearnedNote(selectedId, -1);
+            focusNote = -1;
+            e.consume(this);
+        }
+        else {
+            OpaqueWidget::onSelectKey(e);
+        }
+    }
+
+    void onDeselect(const DeselectEvent&) override {
+        if (selectedId >= 0 && focusNote >= 0)
+            module->setLearnedNote(selectedId, focusNote);
+        selectedId = -1;
+        focusNote = -1;
+    }
+
+    void draw(const DrawArgs& args) override {
+        nvgBeginPath(args.vg);
+        nvgRoundedRect(args.vg, 0, 0, box.size.x, box.size.y, 2.f);
+        nvgFillColor(args.vg, nvgRGBA(0x10, 0x10, 0x10, 0xff));
+        nvgFill(args.vg);
+        nvgStrokeColor(args.vg, nvgRGBA(0x50, 0x50, 0x50, 0xff));
+        nvgStroke(args.vg);
+
+        std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
+        if (!font)
+            return;
+
+        nvgFontFaceId(args.vg, font->handle);
+        nvgFontSize(args.vg, 13.f);
+        nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+
+        float cellW = box.size.x / 2.f;
+        float cellH = box.size.y / 8.f;
+
+        for (int id = 0; id < 16; id++) {
+            int col = id / 8;
+            int row = id % 8;
+            float cx = cellW * col + cellW / 2.f;
+            float cy = cellH * row + cellH / 2.f;
+
+            bool armed = module && (id == module->learningId);
+            bool selected = (id == selectedId);
+            if (armed || selected) {
+                nvgBeginPath(args.vg);
+                nvgRoundedRect(args.vg, cellW * col + 1.f, cellH * row + 1.f, cellW - 2.f, cellH - 2.f, 1.f);
+                nvgFillColor(args.vg, nvgRGBA(0x40, 0x40, 0x10, 0xff));
+                nvgFill(args.vg);
+            }
+
+            int8_t note = module ? module->learnedNotes[id] : (int8_t) (36 + id);
+            std::string label = (selected && focusNote >= 0) ? alGateNoteName(focusNote) : alGateNoteName(note);
+
+            nvgFillColor(args.vg, (armed || selected) ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee));
+            nvgText(args.vg, cx, cy, label.c_str(), NULL);
+        }
+    }
+};
+
+struct AlGateWidget : ModuleWidget {
+    AlGateWidget(AlGate* module) {
+        setModule(module);
+        setPanel(new AlPanel(mm2px(Vec(45.72f, 128.5f)),
+            Svg::load(asset::plugin(pluginInstance, "res/AlGate_Silk_Light.svg")),
+            Svg::load(asset::plugin(pluginInstance, "res/AlGate_Silk_Dark.svg"))));
+
+        addChild(createWidget<AlScrewComponent>(Vec(RACK_GRID_WIDTH, 0)));
+        addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
+        addChild(createWidget<AlScrewComponent>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+        addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+
+        // Placeholder coordinates — panel layout WIP in Inkscape, same
+        // approach as AlSplitter's own widget constructor. Row 1: the two
+        // poly inputs. Below that: col1 (8 gate outputs) | col2 (2x8 note
+        // display) | col3 (8 gate outputs), rows aligned with the display's
+        // own 8 internal rows.
+        const float displayCenterX = 45.72f / 2.f;
+        const float inputsZoneOffsetY = 16.f;
+        
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(15.24f, inputsZoneOffsetY)), module, AlGate::PITCH_INPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(30.48f, inputsZoneOffsetY)), module, AlGate::GATE_INPUT));
+
+        const float colLeft = 8.f, colRight = 37.72f;
+        const float outputsZoneOffsetY = 28.f;
+        const float outputsZoneHeight = 88.f;
+
+        Vec displaySize = mm2px(Vec(18.f, outputsZoneHeight));
+        Vec displayPos = mm2px(Vec(displayCenterX, outputsZoneOffsetY + outputsZoneHeight / 2.f)).minus(displaySize.div(2));
+        AlGateNoteGridDisplay* display = new AlGateNoteGridDisplay(module, displaySize);
+        display->box.pos = displayPos;
+        addChild(display);
+
+        for (int row = 0; row < 8; row++) {
+            float rowY = outputsZoneOffsetY + outputsZoneHeight * (row + 0.5f) / 8.f;
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, AlGate::GATE_OUTPUTS + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, AlGate::GATE_OUTPUTS + 8 + row));
+        }
+    }
+
+    void appendContextMenu(Menu* menu) override {
+        appendAluminiumThemeMenu(menu);
+    }
+};
+#else
+struct AlGateWidget : ModuleWidget {
+    AlGateWidget(AlGate* module) {
+        setModule(module);
+        addInput(createInput<PJ301MPort>({}, module, AlGate::PITCH_INPUT));
+        addInput(createInput<PJ301MPort>({}, module, AlGate::GATE_INPUT));
+        for (int id = 0; id < 16; id++)
+            addOutput(createOutput<PJ301MPort>({}, module, AlGate::GATE_OUTPUTS + id));
+    }
+};
+#endif
+
+Model* modelAlGate = createModel<AlGate, AlGateWidget>("AlGate");

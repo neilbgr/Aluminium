@@ -93,6 +93,21 @@ struct AlPortComponent : AlPort {
     }
 };
 
+// Fixed-style ports (deliberately ignore aluminiumDark()/settings::preferDarkPanels):
+// dark for inputs, light for outputs, so the two are visually distinguishable
+// at a glance regardless of the module's current theme.
+struct AlPortComponentIn : app::SvgPort {
+    AlPortComponentIn() {
+        setSvg(Svg::load(asset::plugin(pluginInstance, "res/Port_Dark.svg")));
+    }
+};
+
+struct AlPortComponentOut : app::SvgPort {
+    AlPortComponentOut() {
+        setSvg(Svg::load(asset::plugin(pluginInstance, "res/Port_Light.svg")));
+    }
+};
+
 // Appends the "Aluminium theme" submenu (Follow Rack/Light/Dark) shared by
 // every Aluminium module's right-click menu.
 inline void appendAluminiumThemeMenu(Menu* menu) {

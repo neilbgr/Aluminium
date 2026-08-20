@@ -492,29 +492,29 @@ struct AlSplitterWidget : ModuleWidget {
         // col2: "Learn", col3: "A", col4: "B" (silkscreen)
 
         // Row 3: PITCH_INPUT | "V/Oct" | ZONE_A_PITCH_OUTPUT | ZONE_B_PITCH_OUTPUT
-        addInput(createInputCentered<AlPortComponent>(mm2px(Vec(col1, row3)), module, AlSplitter::PITCH_INPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col3, row3)), module, AlSplitter::ZONE_A_PITCH_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col4, row3)), module, AlSplitter::ZONE_B_PITCH_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row3)), module, AlSplitter::PITCH_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row3)), module, AlSplitter::ZONE_A_PITCH_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row3)), module, AlSplitter::ZONE_B_PITCH_OUTPUT));
 
         // Row 4: GATE_INPUT | "Gate" | ZONE_A_GATE_OUTPUT | ZONE_B_GATE_OUTPUT
-        addInput(createInputCentered<AlPortComponent>(mm2px(Vec(col1, row4)), module, AlSplitter::GATE_INPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col3, row4)), module, AlSplitter::ZONE_A_GATE_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col4, row4)), module, AlSplitter::ZONE_B_GATE_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row4)), module, AlSplitter::GATE_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row4)), module, AlSplitter::ZONE_A_GATE_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row4)), module, AlSplitter::ZONE_B_GATE_OUTPUT));
 
         // Row 5: VEL_INPUT | "Velocity" | ZONE_A_VEL_OUTPUT | ZONE_B_VEL_OUTPUT
-        addInput(createInputCentered<AlPortComponent>(mm2px(Vec(col1, row5)), module, AlSplitter::VEL_INPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col3, row5)), module, AlSplitter::ZONE_A_VEL_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col4, row5)), module, AlSplitter::ZONE_B_VEL_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row5)), module, AlSplitter::VEL_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row5)), module, AlSplitter::ZONE_A_VEL_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row5)), module, AlSplitter::ZONE_B_VEL_OUTPUT));
 
         // Row 6: AFT_INPUT | "Aftertouch" | ZONE_A_AFT_OUTPUT | ZONE_B_AFT_OUTPUT
-        addInput(createInputCentered<AlPortComponent>(mm2px(Vec(col1, row6)), module, AlSplitter::AFT_INPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col3, row6)), module, AlSplitter::ZONE_A_AFT_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col4, row6)), module, AlSplitter::ZONE_B_AFT_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row6)), module, AlSplitter::AFT_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row6)), module, AlSplitter::ZONE_A_AFT_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row6)), module, AlSplitter::ZONE_B_AFT_OUTPUT));
 
         // Row 7: RTRG_INPUT | "Retrigger" | ZONE_A_RTRIG_OUTPUT | ZONE_B_RTRIG_OUTPUT
-        addInput(createInputCentered<AlPortComponent>(mm2px(Vec(col1, row7)), module, AlSplitter::RTRG_INPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col3, row7)), module, AlSplitter::ZONE_A_RTRIG_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponent>(mm2px(Vec(col4, row7)), module, AlSplitter::ZONE_B_RTRIG_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row7)), module, AlSplitter::RTRG_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row7)), module, AlSplitter::ZONE_A_RTRIG_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row7)), module, AlSplitter::ZONE_B_RTRIG_OUTPUT));
 
         // Row 8: (empty) | "Mono" | ZONE_A_MODE_PARAM | ZONE_B_MODE_PARAM
         addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(
