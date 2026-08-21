@@ -346,8 +346,41 @@ struct AlGateWidget : ModuleWidget {
         }
     }
 
+    // Appends `model` after the end of the existing AlVelocity/AlAftertouch/
+    // AlRetrigger chain to this AlGate's right (all three can be stacked at
+    // once, forwarded right to left — see AlGateExpander.hpp), instead of
+    // always placing it immediately next to AlGate itself where it would
+    // overlap an expander already there. Mirrors Venom's own VenomWidget::
+    // addExpander (Venom.hpp), adapted to walk the chain first.
+    void addAlGateExpanderModel(Model* model) {
+        Module* last = module;
+        while (last->rightExpander.module && alGateIsExpanderModel(last->rightExpander.module->model))
+            last = last->rightExpander.module;
+        ModuleWidget* lastWidget = (last == module) ? this : APP->scene->rack->getModule(last->id);
+
+        Module* newModule = model->createModule();
+        APP->engine->addModule(newModule);
+        ModuleWidget* newWidget = model->createModuleWidget(newModule);
+        APP->scene->rack->setModulePosForce(newWidget,
+            Vec(lastWidget->box.pos.x + lastWidget->box.size.x, lastWidget->box.pos.y));
+        APP->scene->rack->addModule(newWidget);
+
+        history::ModuleAdd* h = new history::ModuleAdd;
+        h->name = "create " + model->name;
+        h->setModule(newWidget);
+        APP->history->push(h);
+    }
+
     void appendContextMenu(Menu* menu) override {
         appendAluminiumThemeMenu(menu);
+
+        menu->addChild(new MenuSeparator);
+        menu->addChild(createMenuItem("Add Al Velocity expander", "",
+            [this]() { addAlGateExpanderModel(modelAlVelocity); }));
+        menu->addChild(createMenuItem("Add Al Aftertouch expander", "",
+            [this]() { addAlGateExpanderModel(modelAlAftertouch); }));
+        menu->addChild(createMenuItem("Add Al Retrigger expander", "",
+            [this]() { addAlGateExpanderModel(modelAlRetrigger); }));
     }
 };
 #else
