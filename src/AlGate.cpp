@@ -375,12 +375,12 @@ struct AlGateWidget : ModuleWidget {
         appendAluminiumThemeMenu(menu);
 
         menu->addChild(new MenuSeparator);
-        menu->addChild(createMenuItem("Add Al Velocity expander", "",
-            [this]() { addAlGateExpanderModel(modelAlVelocity); }));
-        menu->addChild(createMenuItem("Add Al Aftertouch expander", "",
-            [this]() { addAlGateExpanderModel(modelAlAftertouch); }));
-        menu->addChild(createMenuItem("Add Al Retrigger expander", "",
-            [this]() { addAlGateExpanderModel(modelAlRetrigger); }));
+        menu->addChild(createMenuItem("Add Al Velocity Expander", "",
+            [this]() { addAlGateExpanderModel(modelAlVelocityExpander); }));
+        menu->addChild(createMenuItem("Add Al Aftertouch Expander", "",
+            [this]() { addAlGateExpanderModel(modelAlAftertouchExpander); }));
+        menu->addChild(createMenuItem("Add Al Retrigger Expander", "",
+            [this]() { addAlGateExpanderModel(modelAlRetriggerExpander); }));
     }
 };
 #else

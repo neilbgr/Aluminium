@@ -8,7 +8,7 @@
 // of AlGate's 16 cells. Only produces real output while chained (directly,
 // or through another AlGate expander) to an AlGate instance to its left.
 
-struct AlRetrigger : Module {
+struct AlRetriggerExpander : Module {
     enum ParamIds {
         NUM_PARAMS
     };
@@ -25,7 +25,7 @@ struct AlRetrigger : Module {
         NUM_LIGHTS
     };
 
-    AlRetrigger() {
+    AlRetriggerExpander() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
         configInput(RTRG_INPUT, "Retrigger (poly, from MIDI-CV)");
         for (int id = 0; id < 16; id++)
@@ -35,7 +35,7 @@ struct AlRetrigger : Module {
         leftExpander.consumerMessage = new AlGateExpanderMessage;
     }
 
-    ~AlRetrigger() {
+    ~AlRetriggerExpander() {
         delete (AlGateExpanderMessage*) leftExpander.producerMessage;
         delete (AlGateExpanderMessage*) leftExpander.consumerMessage;
     }
@@ -71,8 +71,8 @@ struct AlRetrigger : Module {
 };
 
 #ifndef HEADLESS
-struct AlRetriggerWidget : ModuleWidget {
-    AlRetriggerWidget(AlRetrigger* module) {
+struct AlRetriggerExpanderWidget : ModuleWidget {
+    AlRetriggerExpanderWidget(AlRetriggerExpander* module) {
         setModule(module);
 
         const float panelWidth = 25.4f;
@@ -86,21 +86,21 @@ struct AlRetriggerWidget : ModuleWidget {
         addChild(createWidget<AlScrewComponent>(Vec(0, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 1 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, 11.f)), module, AlRetrigger::CONNECTED_LIGHT));
+        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, 11.f)), module, AlRetriggerExpander::CONNECTED_LIGHT));
 
         const float colLeft = 8.f, colRight = 17.4f;
         const float displayCenterX = panelWidth / 2.f;
         const float inputsZoneOffsetY = 16.f;
 
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, AlRetrigger::RTRG_INPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, AlRetriggerExpander::RTRG_INPUT));
 
         const float outputsZoneOffsetY = 28.f;
         const float outputsZoneHeight = 88.f;
 
         for (int row = 0; row < 8; row++) {
             float rowY = outputsZoneOffsetY + outputsZoneHeight * (row + 0.5f) / 8.f;
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, AlRetrigger::RTRG_OUTPUTS + row));
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, AlRetrigger::RTRG_OUTPUTS + 8 + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, AlRetriggerExpander::RTRG_OUTPUTS + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, AlRetriggerExpander::RTRG_OUTPUTS + 8 + row));
         }
     }
 
@@ -109,14 +109,14 @@ struct AlRetriggerWidget : ModuleWidget {
     }
 };
 #else
-struct AlRetriggerWidget : ModuleWidget {
-    AlRetriggerWidget(AlRetrigger* module) {
+struct AlRetriggerExpanderWidget : ModuleWidget {
+    AlRetriggerExpanderWidget(AlRetriggerExpander* module) {
         setModule(module);
-        addInput(createInput<PJ301MPort>({}, module, AlRetrigger::RTRG_INPUT));
+        addInput(createInput<PJ301MPort>({}, module, AlRetriggerExpander::RTRG_INPUT));
         for (int id = 0; id < 16; id++)
-            addOutput(createOutput<PJ301MPort>({}, module, AlRetrigger::RTRG_OUTPUTS + id));
+            addOutput(createOutput<PJ301MPort>({}, module, AlRetriggerExpander::RTRG_OUTPUTS + id));
     }
 };
 #endif
 
-Model* modelAlRetrigger = createModel<AlRetrigger, AlRetriggerWidget>("AlRetrigger");
+Model* modelAlRetriggerExpander = createModel<AlRetriggerExpander, AlRetriggerExpanderWidget>("AlRetriggerExpander");

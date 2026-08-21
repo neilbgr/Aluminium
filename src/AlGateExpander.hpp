@@ -18,7 +18,7 @@ struct AlGateExpanderMessage {
 };
 
 inline bool alGateIsExpanderModel(Model* model) {
-    return model == modelAlVelocity || model == modelAlAftertouch || model == modelAlRetrigger;
+    return model == modelAlVelocityExpander || model == modelAlAftertouchExpander || model == modelAlRetriggerExpander;
 }
 
 // Pushes `msg` into `self`'s right neighbor's own leftExpander producer

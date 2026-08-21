@@ -7,6 +7,6 @@ extern Plugin *pluginInstance;
 
 extern Model *modelAlSplitter;
 extern Model *modelAlGate;
-extern Model *modelAlVelocity;
-extern Model *modelAlAftertouch;
-extern Model *modelAlRetrigger;
+extern Model *modelAlVelocityExpander;
+extern Model *modelAlAftertouchExpander;
+extern Model *modelAlRetriggerExpander;

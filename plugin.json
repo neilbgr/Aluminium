@@ -29,24 +29,24 @@
       "tags": ["Utility", "Polyphonic"]
     },
     {
-      "slug": "AlVelocity",
-      "name": "Al Velocity",
+      "slug": "AlVelocityExpander",
+      "name": "Al Velocity Expander",
       "description": "Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a polyphonic VELOCITY cable, 16 outputs",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-velocity",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-velocity-expander",
       "tags": ["Utility", "Polyphonic", "Expander"]
     },
     {
-      "slug": "AlAftertouch",
-      "name": "Al Aftertouch",
+      "slug": "AlAftertouchExpander",
+      "name": "Al Aftertouch Expander",
       "description": "Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a polyphonic AFTERTOUCH cable, 16 outputs",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-aftertouch",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-aftertouch-expander",
       "tags": ["Utility", "Polyphonic", "Expander"]
     },
     {
-      "slug": "AlRetrigger",
-      "name": "Al Retrigger",
+      "slug": "AlRetriggerExpander",
+      "name": "Al Retrigger Expander",
       "description": "Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a polyphonic RETRIGGER cable, 16 outputs",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-retrigger",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-retrigger-expander",
       "tags": ["Utility", "Polyphonic", "Expander"]
     }
   ]

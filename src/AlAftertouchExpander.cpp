@@ -8,7 +8,7 @@
 // of AlGate's 16 cells. Only produces real output while chained (directly,
 // or through another AlGate expander) to an AlGate instance to its left.
 
-struct AlAftertouch : Module {
+struct AlAftertouchExpander : Module {
     enum ParamIds {
         NUM_PARAMS
     };
@@ -25,7 +25,7 @@ struct AlAftertouch : Module {
         NUM_LIGHTS
     };
 
-    AlAftertouch() {
+    AlAftertouchExpander() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
         configInput(AFT_INPUT, "Aftertouch (poly, from MIDI-CV)");
         for (int id = 0; id < 16; id++)
@@ -35,7 +35,7 @@ struct AlAftertouch : Module {
         leftExpander.consumerMessage = new AlGateExpanderMessage;
     }
 
-    ~AlAftertouch() {
+    ~AlAftertouchExpander() {
         delete (AlGateExpanderMessage*) leftExpander.producerMessage;
         delete (AlGateExpanderMessage*) leftExpander.consumerMessage;
     }
@@ -71,8 +71,8 @@ struct AlAftertouch : Module {
 };
 
 #ifndef HEADLESS
-struct AlAftertouchWidget : ModuleWidget {
-    AlAftertouchWidget(AlAftertouch* module) {
+struct AlAftertouchExpanderWidget : ModuleWidget {
+    AlAftertouchExpanderWidget(AlAftertouchExpander* module) {
         setModule(module);
 
         const float panelWidth = 25.4f;
@@ -86,21 +86,21 @@ struct AlAftertouchWidget : ModuleWidget {
         addChild(createWidget<AlScrewComponent>(Vec(0, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 1 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, 11.f)), module, AlAftertouch::CONNECTED_LIGHT));
+        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, 11.f)), module, AlAftertouchExpander::CONNECTED_LIGHT));
 
         const float colLeft = 8.f, colRight = 17.4f;
         const float displayCenterX = panelWidth / 2.f;
         const float inputsZoneOffsetY = 16.f;
 
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, AlAftertouch::AFT_INPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, AlAftertouchExpander::AFT_INPUT));
 
         const float outputsZoneOffsetY = 28.f;
         const float outputsZoneHeight = 88.f;
 
         for (int row = 0; row < 8; row++) {
             float rowY = outputsZoneOffsetY + outputsZoneHeight * (row + 0.5f) / 8.f;
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, AlAftertouch::AFT_OUTPUTS + row));
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, AlAftertouch::AFT_OUTPUTS + 8 + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, AlAftertouchExpander::AFT_OUTPUTS + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, AlAftertouchExpander::AFT_OUTPUTS + 8 + row));
         }
     }
 
@@ -109,14 +109,14 @@ struct AlAftertouchWidget : ModuleWidget {
     }
 };
 #else
-struct AlAftertouchWidget : ModuleWidget {
-    AlAftertouchWidget(AlAftertouch* module) {
+struct AlAftertouchExpanderWidget : ModuleWidget {
+    AlAftertouchExpanderWidget(AlAftertouchExpander* module) {
         setModule(module);
-        addInput(createInput<PJ301MPort>({}, module, AlAftertouch::AFT_INPUT));
+        addInput(createInput<PJ301MPort>({}, module, AlAftertouchExpander::AFT_INPUT));
         for (int id = 0; id < 16; id++)
-            addOutput(createOutput<PJ301MPort>({}, module, AlAftertouch::AFT_OUTPUTS + id));
+            addOutput(createOutput<PJ301MPort>({}, module, AlAftertouchExpander::AFT_OUTPUTS + id));
     }
 };
 #endif
 
-Model* modelAlAftertouch = createModel<AlAftertouch, AlAftertouchWidget>("AlAftertouch");
+Model* modelAlAftertouchExpander = createModel<AlAftertouchExpander, AlAftertouchExpanderWidget>("AlAftertouchExpander");
