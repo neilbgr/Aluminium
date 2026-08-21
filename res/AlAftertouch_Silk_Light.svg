@@ -9,22 +9,82 @@
    inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
      id="defs1">
+    <linearGradient
+       id="linearGradient1"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#a1a1a1;stop-opacity:1;"
+         offset="0"
+         id="stop1" />
+      <stop
+         style="stop-color:#858585;stop-opacity:1;"
+         offset="1"
+         id="stop2" />
+    </linearGradient>
     <rect
        x="55.25248"
        y="187.30589"
        width="88.629903"
        height="21.548468"
        id="rect5" />
-    <rect
-       x="55.25248"
-       y="187.30589"
-       width="88.629903"
-       height="21.548468"
-       id="rect1" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient15"
+       id="linearGradient12"
+       gradientUnits="userSpaceOnUse"
+       x1="22.133209"
+       y1="18.338989"
+       x2="22.302099"
+       y2="0.42208433"
+       gradientTransform="matrix(-0.55878927,0,0,-1.0658509,25.473968,27.477364)" />
+    <linearGradient
+       id="linearGradient15"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#dedede;stop-opacity:1;"
+         offset="0"
+         id="stop14" />
+      <stop
+         style="stop-color:#c9c9c9;stop-opacity:1;"
+         offset="0.99244332"
+         id="stop15" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient19"
+       id="linearGradient13"
+       gradientUnits="userSpaceOnUse"
+       x1="21.973976"
+       y1="99.944847"
+       x2="21.973976"
+       y2="126.96036"
+       gradientTransform="matrix(0.55878933,0,0,0.35575418,-0.07387796,82.785294)" />
+    <linearGradient
+       id="linearGradient19"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#c9c9c9;stop-opacity:1;"
+         offset="0"
+         id="stop18" />
+      <stop
+         style="stop-color:#b4b4b4;stop-opacity:1;"
+         offset="1"
+         id="stop19" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient1"
+       id="linearGradient2"
+       x1="12.7"
+       y1="62.123081"
+       x2="12.7"
+       y2="81.648079"
+       gradientUnits="userSpaceOnUse" />
   </defs>
   <sodipodi:namedview
      id="namedview1"
@@ -37,7 +97,7 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="1.6616245"
-     inkscape:cx="48.145655"
+     inkscape:cx="48.446565"
      inkscape:cy="216.95636"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
@@ -45,6 +105,25 @@
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg1" />
+  <path
+     id="path10"
+     style="fill:#c9c9c9;fill-opacity:1;stroke:none;stroke-width:0.264583"
+     d="M 0,2.3727083 H 25.400001 V 122.67872 H 0 Z" />
+  <path
+     id="path12"
+     style="fill:url(#linearGradient13);stroke:none;stroke-width:0.264583"
+     d="M 4.484245e-5,118.13325 H 25.400046 v 10.36646 H 4.484245e-5 Z" />
+  <path
+     id="path11"
+     style="fill:url(#linearGradient12);fill-opacity:1;stroke:none;stroke-width:0.264583"
+     d="M 25.400044,27.336361 H 4.5396305e-5 V 0 H 25.400044 Z" />
+  <rect
+     style="fill:none;stroke:#808080;stroke-width:0.264583;stroke-dasharray:none;stroke-opacity:0.5"
+     id="rect2-4"
+     width="25.135418"
+     height="128.23541"
+     x="0.1322915"
+     y="0.1322917" />
   <!-- Placeholder silkscreen (light theme): empty, no artwork yet. -->
   <text
      xml:space="preserve"
@@ -55,9 +134,9 @@
      y="0"><tspan
        x="58.145977"
        y="204.29101"
-       id="tspan3"><tspan
+       id="tspan4"><tspan
          style="font-weight:bold;-inkscape-font-specification:'sans-serif Bold'"
-         id="tspan1">Aftertch.</tspan></tspan></text>
+         id="tspan2">Aftertch.</tspan></tspan></text>
   <g
      id="g53"
      style="opacity:0.25"
@@ -85,11 +164,9 @@
      id="text1"
      transform="matrix(0.26458333,0,0,0.26458333,-13.510518,-44.979229)"
      aria-label="Aftertch." />
-  <rect
-     style="opacity:0.5;fill:none;stroke:#808080;stroke-width:0.264583;stroke-dasharray:none;stroke-opacity:1"
-     id="rect2"
-     width="25.135418"
-     height="128.23541"
-     x="0.1322915"
-     y="0.1322915" />
+  <path
+     id="rect43"
+     style="fill:url(#linearGradient2);fill-opacity:1;stroke-width:0.264583"
+     d="M 4.6635678,27.771 H 20.736432 c 0.956241,0 1.726068,0.769827 1.726068,1.726068 v 84.777022 c 0,0.95624 -0.769827,1.72607 -1.726068,1.72607 H 4.6635678 c -0.956241,0 -1.726068,-0.76983 -1.726068,-1.72607 V 29.497068 c 0,-0.956241 0.769827,-1.726068 1.726068,-1.726068 z"
+     sodipodi:nodetypes="sssssssss" />
 </svg>
