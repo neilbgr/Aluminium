@@ -5,15 +5,13 @@
 ![All Aluminium panels, Dark theme](docs/images/AllModules_Dark.png)
 
 - **Al Splitter** turns that one keyboard into as many independent note-range zones as you want. Chain several Al Splitters together (feed one zone's output into the next Al Splitter's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
-- **Al Gate** and its three expanders (**Al Velocity Expander**, **Al Aftertouch Expander**, **Al Retrigger Expander**) solve a different flavor of the same problem: a keyboard with no drum pads. Reserve a handful of keys — after a split, if the rest of the keyboard is still being played melodically — and Al Gate turns each one into its own dedicated gate output: one gate per learned note, instead of building your own V/OCT comparison logic the way Core's own MIDI-Gate module would otherwise require. Add the expanders alongside it to also pull out that same note's velocity and/or (polyphonic) aftertouch. The same combination doubles as a clean way to map an external MIDI controller with velocity- and poly-aftertouch-sensitive pads straight through to independent CV, one lane per pad.
+- **Al Gate** and its expander (**Al Gate Expander**) solve a different flavor of the same problem: a keyboard with no drum pads. Reserve a handful of keys — after a split, if the rest of the keyboard is still being played melodically — and Al Gate turns each one into its own dedicated gate output: one gate per learned note, instead of building your own V/OCT comparison logic the way Core's own MIDI-Gate module would otherwise require. Add one Al Gate Expander per poly lane you want to pull out too (velocity and/or polyphonic aftertouch, for instance), naming each one yourself via its on-panel label. The same combination doubles as a clean way to map an external MIDI controller with velocity- and poly-aftertouch-sensitive pads straight through to independent CV, one lane per pad.
 
 | Module                            | What it does                                                                    |
 |------------------------------------|----------------------------------------------------------------------------------|
 | [Al Splitter](#al-splitter)       | Splits one polyphonic MIDI-CV stream into two note-range zones, each poly or mono |
 | [Al Gate](#al-gate)               | 16 gate outputs, one per learned note, from a poly V/OCT + GATE cable            |
-| [Al Velocity Expander](#al-velocity-expander)     | Al Gate expander: mirrors its note mapping onto a poly VELOCITY cable   |
-| [Al Aftertouch Expander](#al-aftertouch-expander) | Al Gate expander: mirrors its note mapping onto a poly AFTERTOUCH cable |
-| [Al Retrigger Expander](#al-retrigger-expander)   | Al Gate expander: mirrors its note mapping onto a poly RETRIGGER cable |
+| [Al Gate Expander](#al-gate-expander) | Al Gate expander: mirrors its note mapping onto a freely-labeled poly lane |
 
 ## Table of Contents
 
@@ -22,9 +20,7 @@
 - [Shared conventions](#shared-conventions)
 - [Al Splitter](#al-splitter)
 - [Al Gate](#al-gate)
-- [Al Velocity Expander](#al-velocity-expander)
-- [Al Aftertouch Expander](#al-aftertouch-expander)
-- [Al Retrigger Expander](#al-retrigger-expander)
+- [Al Gate Expander](#al-gate-expander)
 
 ## Panel themes
 
@@ -46,7 +42,7 @@ Right-click any Aluminium module to open its context menu. One entry is identica
 
 ![Aluminium theme submenu](docs/images/Menu_Theme.png)
 
-Al Splitter adds two more entries of its own (documented under [Al Splitter](#al-splitter)), and Al Gate adds three more (documented under [Al Gate](#al-gate)). Al Velocity Expander, Al Aftertouch Expander, and Al Retrigger Expander have no other entries.
+Al Splitter adds two more entries of its own (documented under [Al Splitter](#al-splitter)), and Al Gate adds one more (documented under [Al Gate](#al-gate)). Al Gate Expander has no other entries — its label is edited directly on the panel, not via the menu.
 
 ## Shared conventions
 
@@ -112,65 +108,34 @@ The left column of ports (outputs 1–8, top to bottom) feeds from the display's
 
 **Context menu**
 
-Adds its expanders directly, already cabled and positioned, instead of pulling each one from the module browser and connecting it by hand:
+Adds an expander directly, already cabled and positioned, instead of pulling it from the module browser and connecting it by hand:
 
 ![Al Gate's add-expander menu items](docs/images/AlGate_Menu_AddExpander.png)
 
-- **Add Al Velocity Expander** / **Add Al Aftertouch Expander** / **Add Al Retrigger Expander** — creates that expander immediately to the right of Al Gate, or to the right of the last expander already chained there if one or more are already attached. All three can be added at once, in any order — see [Al Velocity Expander](#al-velocity-expander) below for how the chain works.
+- **Add Al Gate Expander** — creates one immediately to the right of Al Gate, or to the right of the last expander already chained there if one or more are already attached. Add as many as you need, one per poly lane, in any order — give each one its own name via its on-panel label field, see [Al Gate Expander](#al-gate-expander) below for how the chain works.
 
 **Patch ideas**
 - Reserve a few keys at one end of your keyboard (after splitting them off with [Al Splitter](#al-splitter), if the rest is still being played melodically) and learn each one into Al Gate — every key becomes its own ready-to-patch gate output, without building your own per-note V/OCT comparison logic the way Core's own MIDI-Gate/MIDI-CV combination would otherwise take. Perfect for triggering a handful of drum/percussion modules directly, one key per drum.
-- Add [Al Velocity Expander](#al-velocity-expander) and/or [Al Aftertouch Expander](#al-aftertouch-expander) alongside it to pull out that same note's velocity and (polyphonic) aftertouch too — useful even from a plain keyboard, and just as much a clean way to map an external MIDI controller with velocity-sensitive, polyphonic-aftertouch-sensitive pads straight through to independent CV per pad.
+- Add an [Al Gate Expander](#al-gate-expander) per lane you want alongside it, e.g. one labeled "Velocity" and one labeled "Aftertouch", to pull out that same note's velocity and (polyphonic) aftertouch too — useful even from a plain keyboard, and just as much a clean way to map an external MIDI controller with velocity-sensitive, polyphonic-aftertouch-sensitive pads straight through to independent CV per pad.
 
-## Al Velocity Expander
+## Al Gate Expander
 
-![Al Velocity Expander panel](docs/images/AlVelocity.png)
+![Al Gate Expander panel](docs/images/AlGateExpander.png)
 
-An Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a polyphonic **Velocity** cable (from Core MIDI-CV, or an Al Splitter zone), producing the corresponding velocity on each of its own 16 outputs — output *N* always carries the velocity of whichever note is currently learned into Al Gate's cell *N*.
+An Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto whatever polyphonic cable is patched into its single input (from Core MIDI-CV, or an Al Splitter zone), producing the corresponding value on each of its own 16 outputs — output *N* always carries the value of whichever note is currently learned into Al Gate's cell *N*. The module itself doesn't care which lane that is (Velocity, Aftertouch, Retrigger, or anything else poly) — that's purely a matter of which cable you patch in.
 
-Place it directly to the right of Al Gate — or to the right of another Al Gate expander already chained there (see [Al Gate](#al-gate)'s context menu above); order among Al Velocity Expander/Al Aftertouch Expander/Al Retrigger Expander doesn't matter, they all relay the same mapping onward to whichever of the other two follow them.
+Place it directly to the right of Al Gate — or to the right of another Al Gate Expander already chained there (see [Al Gate](#al-gate)'s context menu above); add as many instances as you need, one per lane, in any order — they all relay the same mapping onward to whichever others follow them.
 
-**Inputs**
-- **Velocity** — the polyphonic velocity lane to read from.
-
-**Outputs**
-- **Velocity 1–16** — that note's current velocity (0V while its cell is unassigned or its note isn't currently held).
-
-**Lights**
-- **Connected** (yellow) — lit whenever Al Gate (or another chained expander leading back to one) is present immediately to the left.
-
-**Patch ideas** — see [Al Gate](#al-gate) above.
-
-## Al Aftertouch Expander
-
-![Al Aftertouch Expander panel](docs/images/AlAftertouch.png)
-
-Identical to [Al Velocity Expander](#al-velocity-expander) above, just reading the polyphonic **Aftertouch** lane instead — output *N* carries the current (polyphonic) aftertouch of whichever note is learned into Al Gate's cell *N*.
+**Label**
+- The single-line field on the panel is a freely-editable text label (click it and type) — it doesn't affect the signal path at all, it's just how you keep track of what you patched into this instance (e.g. "Velocity", "Aftertouch", "Retrigger", or any name you like). It defaults to "Velocity" and is saved with the patch.
 
 **Inputs**
-- **Aftertouch** — the polyphonic aftertouch lane to read from.
+- **Lane** — the polyphonic lane to read from, named after the label above.
 
 **Outputs**
-- **Aftertouch 1–16** — that note's current aftertouch (0V while its cell is unassigned or its note isn't currently held).
+- **Lane 1–16** — that note's current value on the patched-in lane (0V while its cell is unassigned or its note isn't currently held).
 
 **Lights**
-- **Connected** (yellow) — lit whenever Al Gate (or another chained expander leading back to one) is present immediately to the left.
-
-**Patch ideas** — see [Al Gate](#al-gate) above.
-
-## Al Retrigger Expander
-
-![Al Retrigger Expander panel](docs/images/AlRetrigger.png)
-
-Identical to [Al Velocity Expander](#al-velocity-expander) above, just reading the polyphonic **Retrigger** lane instead — output *N* pulses whenever the note learned into Al Gate's cell *N* retriggers (a same-pitch re-strike that never drops gate, per Core MIDI-CV's own "Reuse" retrigger convention).
-
-**Inputs**
-- **Retrigger** — the polyphonic retrigger lane to read from.
-
-**Outputs**
-- **Retrigger 1–16** — a retrigger pulse for that note (silent while its cell is unassigned or its note isn't currently held).
-
-**Lights**
-- **Connected** (yellow) — lit whenever Al Gate (or another chained expander leading back to one) is present immediately to the left.
+- **Connected** (yellow) — lit whenever Al Gate (or another chained expander leading back to one) is present immediately to the left; hover it for a tooltip confirming the connection.
 
 **Patch ideas** — see [Al Gate](#al-gate) above.

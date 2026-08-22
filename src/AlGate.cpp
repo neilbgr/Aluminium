@@ -19,10 +19,11 @@
 // instead of 16 separate LedDisplayChoice widgets. Backspace/Delete clears
 // a cell (shows "--", that output stays low).
 //
-// AlVelocity/AlAftertouch/AlRetrigger (separate expander modules) read
-// which poly channel is currently satisfying each of these 16 cells via
-// AlGateExpanderMessage, so they can mirror the same note->channel mapping
-// onto a different signal lane without duplicating the note-learning UI.
+// AlGateExpander (a separate expander module, one instance per poly lane you
+// need) reads which poly channel is currently satisfying each of these 16
+// cells via AlGateExpanderMessage, so it can mirror the same note->channel
+// mapping onto whatever lane is patched into it without duplicating the
+// note-learning UI.
 
 static const char* AL_GATE_NOTE_NAMES[12] = {
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
@@ -346,11 +347,11 @@ struct AlGateWidget : ModuleWidget {
         }
     }
 
-    // Appends `model` after the end of the existing AlVelocity/AlAftertouch/
-    // AlRetrigger chain to this AlGate's right (all three can be stacked at
-    // once, forwarded right to left — see AlGateExpander.hpp), instead of
-    // always placing it immediately next to AlGate itself where it would
-    // overlap an expander already there. Mirrors Venom's own VenomWidget::
+    // Appends `model` after the end of the existing AlGateExpander chain to
+    // this AlGate's right (any number of instances can be stacked at once,
+    // forwarded right to left — see AlGateExpander.hpp), instead of always
+    // placing it immediately next to AlGate itself where it would overlap
+    // an expander already there. Mirrors Venom's own VenomWidget::
     // addExpander (Venom.hpp), adapted to walk the chain first.
     void addAlGateExpanderModel(Model* model) {
         Module* last = module;
@@ -375,12 +376,8 @@ struct AlGateWidget : ModuleWidget {
         appendAluminiumThemeMenu(menu);
 
         menu->addChild(new MenuSeparator);
-        menu->addChild(createMenuItem("Add Al Velocity Expander", "",
-            [this]() { addAlGateExpanderModel(modelAlVelocityExpander); }));
-        menu->addChild(createMenuItem("Add Al Aftertouch Expander", "",
-            [this]() { addAlGateExpanderModel(modelAlAftertouchExpander); }));
-        menu->addChild(createMenuItem("Add Al Retrigger Expander", "",
-            [this]() { addAlGateExpanderModel(modelAlRetriggerExpander); }));
+        menu->addChild(createMenuItem("Add Al Gate Expander", "",
+            [this]() { addAlGateExpanderModel(modelAlGateExpander); }));
     }
 };
 #else

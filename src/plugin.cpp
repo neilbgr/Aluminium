@@ -8,7 +8,5 @@ void init(Plugin *p) {
     loadAluminiumThemeMode();
     p->addModel(modelAlSplitter);
     p->addModel(modelAlGate);
-    p->addModel(modelAlVelocityExpander);
-    p->addModel(modelAlAftertouchExpander);
-    p->addModel(modelAlRetriggerExpander);
+    p->addModel(modelAlGateExpander);
 }

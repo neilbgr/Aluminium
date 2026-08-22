@@ -29,24 +29,10 @@
       "tags": ["Utility", "Polyphonic"]
     },
     {
-      "slug": "AlVelocityExpander",
-      "name": "Al Velocity Expander",
-      "description": "Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a polyphonic VELOCITY cable, 16 outputs",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-velocity-expander",
-      "tags": ["Utility", "Polyphonic", "Expander"]
-    },
-    {
-      "slug": "AlAftertouchExpander",
-      "name": "Al Aftertouch Expander",
-      "description": "Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a polyphonic AFTERTOUCH cable, 16 outputs",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-aftertouch-expander",
-      "tags": ["Utility", "Polyphonic", "Expander"]
-    },
-    {
-      "slug": "AlRetriggerExpander",
-      "name": "Al Retrigger Expander",
-      "description": "Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a polyphonic RETRIGGER cable, 16 outputs",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-retrigger-expander",
+      "slug": "AlGateExpander",
+      "name": "Al Gate Expander",
+      "description": "Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a freely-labeled polyphonic lane (e.g. Velocity, Aftertouch, Retrigger), 16 outputs",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-gate-expander",
       "tags": ["Utility", "Polyphonic", "Expander"]
     }
   ]
