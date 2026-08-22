@@ -64,8 +64,8 @@ struct AlGate : Module {
 
     AlGate() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
-        configInput(PITCH_INPUT, "V/OCT (poly, from MIDI-CV)");
-        configInput(GATE_INPUT, "Gate (poly, from MIDI-CV)");
+        configInput(PITCH_INPUT, "Pitch (poly)");
+        configInput(GATE_INPUT, "Gate (poly)");
         for (int id = 0; id < 16; id++)
             configOutput(GATE_OUTPUTS + id, string::f("Gate %d", id + 1));
 
@@ -98,6 +98,7 @@ struct AlGate : Module {
 
     void process(const ProcessArgs&) override {
         int channels = std::min(inputs[PITCH_INPUT].getChannels(), 16);
+        expMsg.channels = (int8_t) channels;
 
         for (int id = 0; id < 16; id++) {
             bool matched = false;
@@ -376,7 +377,7 @@ struct AlGateWidget : ModuleWidget {
         appendAluminiumThemeMenu(menu);
 
         menu->addChild(new MenuSeparator);
-        menu->addChild(createMenuItem("Add Al Gate Expander", "",
+        menu->addChild(createMenuItem("Add an expander", "",
             [this]() { addAlGateExpanderModel(modelAlGateExpander); }));
     }
 };

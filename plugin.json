@@ -31,7 +31,7 @@
     {
       "slug": "AlGateExpander",
       "name": "Al Gate Expander",
-      "description": "Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto a freely-labeled polyphonic lane (e.g. Velocity, Aftertouch, Retrigger), 16 outputs",
+      "description": "Al Gate expander: extracts a freely-labeled polyphonic lane (e.g. Velocity, Aftertouch, Retrigger) into 16 mono outputs, one per note Al Gate has learned",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-gate-expander",
       "tags": ["Utility", "Polyphonic", "Expander"]
     }

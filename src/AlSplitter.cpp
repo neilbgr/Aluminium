@@ -178,25 +178,25 @@ struct AlSplitter : Module {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
         configParam<SplitParamQuantity>(SPLIT_PARAM, -4.f, 4.f, 0.f, "Split point");
         configSwitch(LEARN_PARAM, 0.f, 1.f, 0.f, "Learn split point", {"Idle", "Listening for next note"});
-        configSwitch(ZONE_A_MODE_PARAM, 0.f, 1.f, MODE_POLY, "Zone A mode", {"Polyphonic", "Monophonic"});
-        configSwitch(ZONE_B_MODE_PARAM, 0.f, 1.f, MODE_POLY, "Zone B mode", {"Polyphonic", "Monophonic"});
+        configSwitch(ZONE_A_MODE_PARAM, 0.f, 1.f, MODE_POLY, "Poly/mono Zone A", {"Polyphonic", "Monophonic"});
+        configSwitch(ZONE_B_MODE_PARAM, 0.f, 1.f, MODE_POLY, "Poly/mono Zone B", {"Polyphonic", "Monophonic"});
 
-        configInput(PITCH_INPUT, "V/OCT (poly, from MIDI-CV)");
-        configInput(GATE_INPUT, "Gate (poly, from MIDI-CV)");
-        configInput(VEL_INPUT, "Velocity (poly, from MIDI-CV)");
-        configInput(AFT_INPUT, "Aftertouch (poly, from MIDI-CV)");
-        configInput(RTRG_INPUT, "Retrigger (poly, from MIDI-CV)");
+        configInput(PITCH_INPUT, "Pitch (poly)");
+        configInput(GATE_INPUT, "Gate (poly)");
+        configInput(VEL_INPUT, "Velocity (poly)");
+        configInput(AFT_INPUT, "Aftertouch (poly)");
+        configInput(RTRG_INPUT, "Retrigger (poly)");
 
-        configOutput(ZONE_A_PITCH_OUTPUT, "Zone A V/OCT");
-        configOutput(ZONE_A_GATE_OUTPUT, "Zone A gate");
-        configOutput(ZONE_A_VEL_OUTPUT, "Zone A velocity");
-        configOutput(ZONE_A_AFT_OUTPUT, "Zone A aftertouch");
-        configOutput(ZONE_A_RTRIG_OUTPUT, "Zone A retrigger");
-        configOutput(ZONE_B_PITCH_OUTPUT, "Zone B V/OCT");
-        configOutput(ZONE_B_GATE_OUTPUT, "Zone B gate");
-        configOutput(ZONE_B_VEL_OUTPUT, "Zone B velocity");
-        configOutput(ZONE_B_AFT_OUTPUT, "Zone B aftertouch");
-        configOutput(ZONE_B_RTRIG_OUTPUT, "Zone B retrigger");
+        configOutput(ZONE_A_PITCH_OUTPUT, "Pitch Zone A");
+        configOutput(ZONE_A_GATE_OUTPUT, "Gate Zone A");
+        configOutput(ZONE_A_VEL_OUTPUT, "Velocity Zone A");
+        configOutput(ZONE_A_AFT_OUTPUT, "Aft.tch. Zone A");
+        configOutput(ZONE_A_RTRIG_OUTPUT, "Retrig Zone A");
+        configOutput(ZONE_B_PITCH_OUTPUT, "Pitch Zone B");
+        configOutput(ZONE_B_GATE_OUTPUT, "Gate Zone B");
+        configOutput(ZONE_B_VEL_OUTPUT, "Velocity Zone B");
+        configOutput(ZONE_B_AFT_OUTPUT, "Aft.tch. Zone B");
+        configOutput(ZONE_B_RTRIG_OUTPUT, "Retrig Zone B");
 
         resetChannelState();
     }
@@ -528,12 +528,12 @@ struct AlSplitterWidget : ModuleWidget {
         assert(module);
 
         menu->addChild(new MenuSeparator);
-        menu->addChild(createIndexSubmenuItem("Zone A priority (when monophonic)",
+        menu->addChild(createIndexSubmenuItem("Monophonic priority (Zone A)",
             {"Last note", "Highest note", "Lowest note"},
             [=]() { return module->zoneA.priority; },
             [=](int p) { module->zoneA.priority = p; }
         ));
-        menu->addChild(createIndexSubmenuItem("Zone B priority (when monophonic)",
+        menu->addChild(createIndexSubmenuItem("Monophonic priority (Zone B)",
             {"Last note", "Highest note", "Lowest note"},
             [=]() { return module->zoneB.priority; },
             [=](int p) { module->zoneB.priority = p; }

@@ -36,7 +36,7 @@ Every Aluminium panel follows one shared **Follow Rack / Light / Dark** setting 
 
 ## Right-click menu
 
-Right-click any Aluminium module to open its context menu. One entry is identical across all 5 modules:
+Right-click any Aluminium module to open its context menu. One entry is identical across all 3 modules:
 
 - **Aluminium theme** — a submenu to switch between *Follow Rack*, *Light*, and *Dark*. Because this setting is shared pack-wide (see [Panel themes](#panel-themes) above), changing it from **any** Aluminium module's menu re-themes **every** Aluminium module currently in the patch, in one step — there's no separate "apply to all" action to trigger, it always applies to the whole pack, immediately.
 
@@ -112,7 +112,7 @@ Adds an expander directly, already cabled and positioned, instead of pulling it 
 
 ![Al Gate's add-expander menu items](docs/images/AlGate_Menu_AddExpander.png)
 
-- **Add Al Gate Expander** — creates one immediately to the right of Al Gate, or to the right of the last expander already chained there if one or more are already attached. Add as many as you need, one per poly lane, in any order — give each one its own name via its on-panel label field, see [Al Gate Expander](#al-gate-expander) below for how the chain works.
+- **Add an expander** — creates an Al Gate Expander immediately to the right of Al Gate, or to the right of the last expander already chained there if one or more are already attached. Add as many as you need, one per poly lane, in any order — give each one its own name via its on-panel label field, see [Al Gate Expander](#al-gate-expander) below for how the chain works.
 
 **Patch ideas**
 - Reserve a few keys at one end of your keyboard (after splitting them off with [Al Splitter](#al-splitter), if the rest is still being played melodically) and learn each one into Al Gate — every key becomes its own ready-to-patch gate output, without building your own per-note V/OCT comparison logic the way Core's own MIDI-Gate/MIDI-CV combination would otherwise take. Perfect for triggering a handful of drum/percussion modules directly, one key per drum.
@@ -122,20 +122,23 @@ Adds an expander directly, already cabled and positioned, instead of pulling it 
 
 ![Al Gate Expander panel](docs/images/AlGateExpander.png)
 
-An Al Gate expander: mirrors Al Gate's current note-to-channel mapping onto whatever polyphonic cable is patched into its single input (from Core MIDI-CV, or an Al Splitter zone), producing the corresponding value on each of its own 16 outputs — output *N* always carries the value of whichever note is currently learned into Al Gate's cell *N*. The module itself doesn't care which lane that is (Velocity, Aftertouch, Retrigger, or anything else poly) — that's purely a matter of which cable you patch in.
+An Al Gate expander: extracts whatever polyphonic cable is patched into its single input (from Core MIDI-CV, or an Al Splitter zone) into 16 mono outputs, one per note Al Gate has learned — output *N* always carries the value of whichever note is currently learned into Al Gate's cell *N*. The module itself doesn't care which lane that is (Velocity, Aftertouch, Retrigger, or anything else poly) — that's purely a matter of which cable you patch in.
 
 Place it directly to the right of Al Gate — or to the right of another Al Gate Expander already chained there (see [Al Gate](#al-gate)'s context menu above); add as many instances as you need, one per lane, in any order — they all relay the same mapping onward to whichever others follow them.
 
 **Label**
-- The single-line field on the panel is a freely-editable text label (click it and type) — it doesn't affect the signal path at all, it's just how you keep track of what you patched into this instance (e.g. "Velocity", "Aftertouch", "Retrigger", or any name you like). It defaults to "Velocity" and is saved with the patch.
+- The single-line field on the panel is a freely-editable text label (click it and type) — it doesn't affect the signal path at all, it's just how you keep track of what you patched into this instance (e.g. "Velocity", "Aftertouch", "Retrigger", or any name you like). It's empty by default, and saved with the patch.
+- The first time you patch a cable into this instance's input while the label is still empty, it's auto-filled from that cable's source (its first 8 characters, e.g. patching Core MIDI-CV's Velocity output fills in "Velocity"). Unpatching that cable clears the label back to empty automatically — but only for a label that was auto-filled this way; once you've typed your own text over it, unpatching leaves it alone.
 
 **Inputs**
 - **Lane** — the polyphonic lane to read from, named after the label above.
 
 **Outputs**
-- **Lane 1–16** — that note's current value on the patched-in lane (0V while its cell is unassigned or its note isn't currently held).
+- **Lane 1–16** — that note's current value on the patched-in lane (0V while its cell is unassigned, its note isn't currently held, or the input's channel count doesn't reach that cell's channel — see Lights below).
 
-**Lights**
-- **Connected** (yellow) — lit whenever Al Gate (or another chained expander leading back to one) is present immediately to the left; hover it for a tooltip confirming the connection.
+**Lights** — one status LED, showing one of three colors at a time (hover it for a tooltip covering all three):
+- **Yellow** — chained to Al Gate (directly or through other expanders), but nothing patched into this instance's own input yet.
+- **Red** — chained and patched in, but this instance's own cable has a different channel count than Al Gate's V/OCT + Gate cable; outputs for cells beyond its channel count read 0V instead of whatever note Al Gate has learned there.
+- **Green** — chained, patched in, and channel counts match: fully working.
 
 **Patch ideas** — see [Al Gate](#al-gate) above.

@@ -14,6 +14,10 @@ static const int AL_GATE_NUM_CELLS = 16;
 
 struct AlGateExpanderMessage {
     int8_t activeChannel[AL_GATE_NUM_CELLS];
+    // AlGate's own current V/OCT+GATE channel count, so an expander can
+    // tell whether its own (separately patched) lane cable has a matching
+    // channel count.
+    int8_t channels = 0;
 };
 
 inline bool alGateIsExpanderModel(Model* model) {
