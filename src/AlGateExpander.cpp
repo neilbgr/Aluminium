@@ -205,7 +205,7 @@ struct AlGateExpanderWidget : ModuleWidget {
         // 12px font + 5px top/bottom padding (its own defaults, in raw
         // pixels regardless of panel scale) — too short a box clips the
         // text against its own clip rect instead of just looking cramped.
-        const float labelCenterY = 23.8f, labelWidth = 19.4f, labelHeight = 6.f;
+        const float labelCenterY = 14.f, labelWidth = 19.4f, labelHeight = 6.f;
         LedDisplay* labelDisplay = createWidget<LedDisplay>(mm2px(Vec(panelWidth / 2.f - labelWidth / 2.f, labelCenterY - labelHeight / 2.f)));
         labelDisplay->box.size = mm2px(Vec(labelWidth, labelHeight));
         AlGateExpanderLabelField* labelField = createWidget<AlGateExpanderLabelField>(Vec(0, 0));
@@ -214,13 +214,13 @@ struct AlGateExpanderWidget : ModuleWidget {
         labelDisplay->addChild(labelField);
         addChild(labelDisplay);
 
-        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, 11.f)), module, AlGateExpander::CONNECTED_LIGHT));
-        addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(1.8f, 11.f)), module, AlGateExpander::MISMATCH_LIGHT));
-        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(1.8f, 11.f)), module, AlGateExpander::OK_LIGHT));
-
         const float colLeft = 8.f, colRight = 17.4f;
         const float displayCenterX = panelWidth / 2.f;
-        const float inputsZoneOffsetY = 16.f;
+        const float inputsZoneOffsetY = 22.f;
+
+        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, AlGateExpander::CONNECTED_LIGHT));
+        addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, AlGateExpander::MISMATCH_LIGHT));
+        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, AlGateExpander::OK_LIGHT));
 
         laneInputWidget = createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, AlGateExpander::LANE_INPUT);
         addInput(laneInputWidget);
