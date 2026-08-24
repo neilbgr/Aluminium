@@ -326,7 +326,7 @@ struct AlGateWidget : ModuleWidget {
         // display) | col3 (8 gate outputs), rows aligned with the display's
         // own 8 internal rows.
         const float displayCenterX = 45.72f / 2.f;
-        const float inputsZoneOffsetY = 16.f;
+        const float inputsZoneOffsetY = 22.f;
         
         addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(15.24f, inputsZoneOffsetY)), module, AlGate::PITCH_INPUT));
         addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(30.48f, inputsZoneOffsetY)), module, AlGate::GATE_INPUT));
