@@ -24,7 +24,7 @@
     {
       "slug": "Pads",
       "name": "Pads",
-      "description": "16 gate outputs, one per learned note, driven by a polyphonic V/OCT + GATE cable (e.g. from Core MIDI-CV or Zones) instead of MIDI — learn a cell by clicking it and playing (or typing) the note",
+      "description": "16 gate outputs, one per learned note, driven by a polyphonic V/OCT + GATE cable (e.g. from Core MIDI-CV or Zones) instead of MIDI — learn a cell by clicking it and playing (or typing) the note; each cell can be switched to Latch mode to toggle on/off instead of following the held note",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#pads",
       "tags": ["Utility", "Polyphonic"]
     },

@@ -38,6 +38,7 @@ static std::string padNoteName(int8_t note) {
 
 struct Pads : Module {
     enum ParamIds {
+        ENUMS(LATCH_PARAMS, 16),
         NUM_PARAMS
     };
     enum InputIds {
@@ -50,6 +51,7 @@ struct Pads : Module {
         NUM_OUTPUTS
     };
     enum LightIds {
+        ENUMS(LATCH_LIGHTS, 16),
         NUM_LIGHTS
     };
 
@@ -58,6 +60,12 @@ struct Pads : Module {
     // -1 = not learning; id of the cell awaiting its next played/typed note otherwise.
     int learningId = -1;
     bool prevGateHigh[16] = {};
+    // Per-cell toggled gate value while that cell is in Latch mode (see
+    // LATCH_PARAMS) — flips on each rising edge of the cell's own `matched`
+    // state, independently of prevGateHigh above (which tracks per-channel
+    // input gate state for the Learn feature, a different concept).
+    bool latchedState[16] = {};
+    bool prevMatched[16] = {};
 
     PadXMessage expMsg = {};
 
@@ -65,15 +73,20 @@ struct Pads : Module {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
         configInput(PITCH_INPUT, "Pitch (poly)");
         configInput(GATE_INPUT, "Gate (poly)");
-        for (int id = 0; id < 16; id++)
+        for (int id = 0; id < 16; id++) {
             configOutput(GATE_OUTPUTS + id, string::f("Gate %d", id + 1));
+            configSwitch(LATCH_PARAMS + id, 0.f, 1.f, 0.f, string::f("Latch cell %d", id + 1), {"Normal", "Latch"});
+        }
 
         onReset();
     }
 
     void onReset() override {
-        for (int id = 0; id < 16; id++)
+        for (int id = 0; id < 16; id++) {
             learnedNotes[id] = 36 + id;
+            latchedState[id] = false;
+            prevMatched[id] = false;
+        }
         learningId = -1;
         for (int c = 0; c < 16; c++)
             prevGateHigh[c] = false;
@@ -93,6 +106,10 @@ struct Pads : Module {
                     learnedNotes[i] = -1;
         }
         learnedNotes[id] = note;
+        // A cell's note identity just changed — don't let a stale toggled
+        // state from whatever was learned before bleed into the new note.
+        latchedState[id] = false;
+        prevMatched[id] = false;
     }
 
     void process(const ProcessArgs&) override {
@@ -113,8 +130,26 @@ struct Pads : Module {
                 }
             }
 
+            // Latch: on each rising edge of `matched`, toggle latchedState
+            // instead of following it directly. expMsg.activeChannel still
+            // reflects the raw physical state below, unaffected by latch —
+            // an expander chained on Velocity/Aftertouch/etc. still tracks
+            // the real note, not the latched gate.
+            bool latchOn = params[LATCH_PARAMS + id].getValue() > 0.5f;
+            bool gateHigh;
+            if (latchOn) {
+                if (matched && !prevMatched[id])
+                    latchedState[id] = !latchedState[id];
+                gateHigh = latchedState[id];
+            }
+            else {
+                gateHigh = matched;
+            }
+            prevMatched[id] = matched;
+
             outputs[GATE_OUTPUTS + id].setChannels(1);
-            outputs[GATE_OUTPUTS + id].setVoltage(matched ? 10.f : 0.f);
+            outputs[GATE_OUTPUTS + id].setVoltage(gateHigh ? 10.f : 0.f);
+            lights[LATCH_LIGHTS + id].setBrightness(latchOn ? 1.f : 0.f);
             expMsg.activeChannel[id] = (int8_t) matchedChannel;
         }
 
@@ -140,9 +175,13 @@ struct Pads : Module {
     json_t* dataToJson() override {
         json_t* rootJ = json_object();
         json_t* notesJ = json_array();
-        for (int id = 0; id < 16; id++)
+        json_t* latchedJ = json_array();
+        for (int id = 0; id < 16; id++) {
             json_array_append_new(notesJ, json_integer(learnedNotes[id]));
+            json_array_append_new(latchedJ, json_boolean(latchedState[id]));
+        }
         json_object_set_new(rootJ, "notes", notesJ);
+        json_object_set_new(rootJ, "latched", latchedJ);
         return rootJ;
     }
 
@@ -153,6 +192,14 @@ struct Pads : Module {
                     learnedNotes[id] = (int8_t) json_integer_value(noteJ);
                 else
                     learnedNotes[id] = -1;
+            }
+        }
+        if (json_t* latchedJ = json_object_get(rootJ, "latched")) {
+            for (int id = 0; id < 16; id++) {
+                if (json_t* latchJ = json_array_get(latchedJ, id))
+                    latchedState[id] = json_boolean_value(latchJ);
+                else
+                    latchedState[id] = false;
             }
         }
     }
@@ -310,7 +357,8 @@ struct PadsNoteGridDisplay : OpaqueWidget {
 struct PadsWidget : ModuleWidget {
     PadsWidget(Pads* module) {
         setModule(module);
-        setPanel(new AlPanel(mm2px(Vec(45.72f, 128.5f)),
+        const float panelWidth = 66.04f;
+        setPanel(new AlPanel(mm2px(Vec(panelWidth, 128.5f)),
             Svg::load(asset::plugin(pluginInstance, "res/Pads_Silk_Light.svg")),
             Svg::load(asset::plugin(pluginInstance, "res/Pads_Silk_Dark.svg"))));
 
@@ -320,17 +368,18 @@ struct PadsWidget : ModuleWidget {
         addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
         // Placeholder coordinates — panel layout WIP in Inkscape, same
-        // approach as Zones' own widget constructor. Row 1: the two
-        // poly inputs. Below that: col1 (8 gate outputs) | col2 (2x8 note
-        // display) | col3 (8 gate outputs), rows aligned with the display's
-        // own 8 internal rows.
-        const float displayCenterX = 45.72f / 2.f;
+        // approach as Zones' own widget constructor. Row 1: the two poly
+        // inputs. Below that, left to right: colLatchLeft (8 Latch buttons)
+        // | colGateLeft (8 gate outputs) | col2 (2x8 note display) |
+        // colGateRight (8 gate outputs) | colLatchRight (8 Latch buttons),
+        // rows aligned with the display's own 8 internal rows.
+        const float displayCenterX = panelWidth / 2.f;
         const float inputsZoneOffsetY = 22.f;
-        
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(15.24f, inputsZoneOffsetY)), module, Pads::PITCH_INPUT));
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(30.48f, inputsZoneOffsetY)), module, Pads::GATE_INPUT));
 
-        const float colLeft = 8.f, colRight = 37.72f;
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX - 7.62f, inputsZoneOffsetY)), module, Pads::PITCH_INPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX + 7.62f, inputsZoneOffsetY)), module, Pads::GATE_INPUT));
+
+        const float colLatchLeft = 8.f, colGateLeft = 18.f, colGateRight = 48.04f, colLatchRight = 58.04f;
         const float outputsZoneOffsetY = 28.f;
         const float outputsZoneHeight = 88.f;
 
@@ -342,8 +391,12 @@ struct PadsWidget : ModuleWidget {
 
         for (int row = 0; row < 8; row++) {
             float rowY = outputsZoneOffsetY + outputsZoneHeight * (row + 0.5f) / 8.f;
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, Pads::GATE_OUTPUTS + row));
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, Pads::GATE_OUTPUTS + 8 + row));
+            addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<YellowLight>>>(
+                mm2px(Vec(colLatchLeft, rowY)), module, Pads::LATCH_PARAMS + row, Pads::LATCH_LIGHTS + row));
+            addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<YellowLight>>>(
+                mm2px(Vec(colLatchRight, rowY)), module, Pads::LATCH_PARAMS + 8 + row, Pads::LATCH_LIGHTS + 8 + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colGateLeft, rowY)), module, Pads::GATE_OUTPUTS + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colGateRight, rowY)), module, Pads::GATE_OUTPUTS + 8 + row));
         }
     }
 
