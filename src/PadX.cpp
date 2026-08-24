@@ -225,7 +225,7 @@ struct PadXWidget : ModuleWidget {
         laneInputWidget = createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, PadX::LANE_INPUT);
         addInput(laneInputWidget);
 
-        const float outputsZoneOffsetY = 28.f;
+        const float outputsZoneOffsetY = 31.5f;
         const float outputsZoneHeight = 88.f;
 
         for (int row = 0; row < 8; row++) {

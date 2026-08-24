@@ -392,7 +392,7 @@ struct PadsWidget : ModuleWidget {
         addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(panelWidth * 2.f / 3.f, inputsZoneOffsetY)), module, Pads::GATE_INPUT));
 
         const float colLatchLeft = 5.46f, colGateLeft = 15.46f, colGateRight = 45.5f, colLatchRight = 55.5f;
-        const float outputsZoneOffsetY = 28.f;
+        const float outputsZoneOffsetY = 31.5f;
         const float outputsZoneHeight = 88.f;
 
         Vec displaySize = mm2px(Vec(18.f, outputsZoneHeight));
