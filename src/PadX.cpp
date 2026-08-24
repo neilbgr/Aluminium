@@ -218,9 +218,9 @@ struct PadXWidget : ModuleWidget {
         const float displayCenterX = panelWidth / 2.f;
         const float inputsZoneOffsetY = 22.f;
 
-        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, PadX::CONNECTED_LIGHT));
-        addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, PadX::MISMATCH_LIGHT));
-        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, PadX::OK_LIGHT));
+        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(2.9, 7.7f)), module, PadX::CONNECTED_LIGHT));
+        addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(2.9f, 7.7f)), module, PadX::MISMATCH_LIGHT));
+        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(2.9f, 7.7f)), module, PadX::OK_LIGHT));
 
         laneInputWidget = createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, PadX::LANE_INPUT);
         addInput(laneInputWidget);

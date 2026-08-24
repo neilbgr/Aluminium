@@ -354,10 +354,22 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     }
 };
 
+// Smaller lit latch button than the stock VCVLightLatch (which is built on
+// VCVButton, ~18px/side) — same LightButton+latch recipe, just wrapping the
+// smaller bundled TL1105 switch (~15.36px/side) instead. TL1105 already
+// ships both on/off SVG frames, so no new artwork is needed.
+template <typename TLight>
+struct SmallLightLatch : LightButton<TL1105, TLight> {
+    SmallLightLatch() {
+        this->momentary = false;
+        this->latch = true;
+    }
+};
+
 struct PadsWidget : ModuleWidget {
     PadsWidget(Pads* module) {
         setModule(module);
-        const float panelWidth = 66.04f;
+        const float panelWidth = 60.96f;
         setPanel(new AlPanel(mm2px(Vec(panelWidth, 128.5f)),
             Svg::load(asset::plugin(pluginInstance, "res/Pads_Silk_Light.svg")),
             Svg::load(asset::plugin(pluginInstance, "res/Pads_Silk_Dark.svg"))));
@@ -376,10 +388,10 @@ struct PadsWidget : ModuleWidget {
         const float displayCenterX = panelWidth / 2.f;
         const float inputsZoneOffsetY = 22.f;
 
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX - 7.62f, inputsZoneOffsetY)), module, Pads::PITCH_INPUT));
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX + 7.62f, inputsZoneOffsetY)), module, Pads::GATE_INPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(panelWidth / 3.f, inputsZoneOffsetY)), module, Pads::PITCH_INPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(panelWidth * 2.f / 3.f, inputsZoneOffsetY)), module, Pads::GATE_INPUT));
 
-        const float colLatchLeft = 8.f, colGateLeft = 18.f, colGateRight = 48.04f, colLatchRight = 58.04f;
+        const float colLatchLeft = 5.46f, colGateLeft = 15.46f, colGateRight = 45.5f, colLatchRight = 55.5f;
         const float outputsZoneOffsetY = 28.f;
         const float outputsZoneHeight = 88.f;
 
@@ -391,9 +403,9 @@ struct PadsWidget : ModuleWidget {
 
         for (int row = 0; row < 8; row++) {
             float rowY = outputsZoneOffsetY + outputsZoneHeight * (row + 0.5f) / 8.f;
-            addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<YellowLight>>>(
+            addParam(createLightParamCentered<SmallLightLatch<MediumSimpleLight<WhiteLight>>>(
                 mm2px(Vec(colLatchLeft, rowY)), module, Pads::LATCH_PARAMS + row, Pads::LATCH_LIGHTS + row));
-            addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<YellowLight>>>(
+            addParam(createLightParamCentered<SmallLightLatch<MediumSimpleLight<WhiteLight>>>(
                 mm2px(Vec(colLatchRight, rowY)), module, Pads::LATCH_PARAMS + 8 + row, Pads::LATCH_LIGHTS + 8 + row));
             addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colGateLeft, rowY)), module, Pads::GATE_OUTPUTS + row));
             addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colGateRight, rowY)), module, Pads::GATE_OUTPUTS + 8 + row));
