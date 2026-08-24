@@ -4,23 +4,23 @@
 
 ![All Aluminium panels, Dark theme](docs/images/AllModules_Dark.png)
 
-- **Al Splitter** turns that one keyboard into as many independent note-range zones as you want. Chain several Al Splitters together (feed one zone's output into the next Al Splitter's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
-- **Al Gate** and its expander (**Al Gate Expander**) exist for live performance with MIDI pad controllers: patch in a controller whose pads are velocity- and/or polyphonic-aftertouch-sensitive, learn each pad once, and every pad becomes its own independent, fully expressive CV voice — gate, velocity, aftertouch, whatever lane you need — with no MIDI-mapping software and no hand-built V/OCT comparison logic. The same trick works just as well on a handful of keys reserved off the end of an ordinary keyboard (after a split, if the rest is still being played melodically), and nothing ties either module to a single input — feed one Al Gate from one controller's pads while an Al Splitter zone handles another controller's keys, and build a full live rig from several MIDI controllers at once, all inside the same patch.
+- **Zones** turns that one keyboard into as many independent note-range zones as you want. Chain several Zones modules together (feed one zone's output into the next one's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
+- **Pads** and its expander (**PadX**) exist for live performance with MIDI pad controllers: patch in a controller whose pads are velocity- and/or polyphonic-aftertouch-sensitive, learn each pad once, and every pad becomes its own independent, fully expressive CV voice — gate, velocity, aftertouch, whatever lane you need — with no MIDI-mapping software and no hand-built V/OCT comparison logic. The same trick works just as well on a handful of keys reserved off the end of an ordinary keyboard (after a split, if the rest is still being played melodically), and nothing ties either module to a single input — feed one Pads module from one controller's pads while a Zones output handles another controller's keys, and build a full live rig from several MIDI controllers at once, all inside the same patch.
 
-| Module                            | What it does                                                                    |
-|------------------------------------|----------------------------------------------------------------------------------|
-| [Al Splitter](#al-splitter)       | Splits one polyphonic MIDI-CV stream into two note-range zones, each poly or mono |
-| [Al Gate](#al-gate)               | 16 gate outputs, one per learned note, from a poly V/OCT + GATE cable            |
-| [Al Gate Expander](#al-gate-expander) | Al Gate expander: mirrors its note mapping onto a freely-labeled poly lane |
+| Module                 | What it does                                                                    |
+|-------------------------|----------------------------------------------------------------------------------|
+| [Zones](#zones)         | Splits one polyphonic MIDI-CV stream into two note-range zones, each poly or mono |
+| [Pads](#pads)           | 16 gate outputs, one per learned note, from a poly V/OCT + GATE cable            |
+| [PadX](#padx)           | Pads expander: mirrors its note mapping onto a freely-labeled poly lane |
 
 ## Table of Contents
 
 - [Panel themes](#panel-themes)
 - [Right-click menu](#right-click-menu)
 - [Shared conventions](#shared-conventions)
-- [Al Splitter](#al-splitter)
-- [Al Gate](#al-gate)
-- [Al Gate Expander](#al-gate-expander)
+- [Zones](#zones)
+- [Pads](#pads)
+- [PadX](#padx)
 
 ## Panel themes
 
@@ -42,17 +42,17 @@ Right-click any Aluminium module to open its context menu. One entry is identica
 
 ![Aluminium theme submenu](docs/images/Menu_Theme.png)
 
-Al Splitter adds two more entries of its own (documented under [Al Splitter](#al-splitter)), and Al Gate adds one more (documented under [Al Gate](#al-gate)). Al Gate Expander has no other entries — its label is edited directly on the panel, not via the menu.
+Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds one more (documented under [Pads](#pads)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
 
 ## Shared conventions
 
 - **V/OCT.** Pitch follows the standard 1 volt per octave convention (0V = C4), like any other Rack oscillator or sequencer.
-- **Where inputs come from.** Every Aluminium input in this pack expects the polyphonic outputs of Rack/Cardinal's own core **MIDI-CV** module (V/OCT, GATE, VELOCITY, AFTERTOUCH, RETRIGGER) — either patched directly, or via Al Splitter's own zone outputs, which carry the same 5 signals split by note range.
+- **Where inputs come from.** Every Aluminium input in this pack expects the polyphonic outputs of Rack/Cardinal's own core **MIDI-CV** module (V/OCT, GATE, VELOCITY, AFTERTOUCH, RETRIGGER) — either patched directly, or via one of Zones' own outputs, which carry the same 5 signals split by note range.
 - **16-channel cap.** Every module in this pack follows Rack's own 16-channel polyphony limit — inputs/zones/cells beyond the 16th incoming channel are simply not read.
 
-## Al Splitter
+## Zones
 
-![Al Splitter panel](docs/images/AlSplitter.png)
+![Zones panel](docs/images/Zones.png)
 
 Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below the split point) and Zone B (at/above it) — each independently switchable between a straight polyphonic passthrough and a single monophonic voice.
 
@@ -64,7 +64,7 @@ Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below
 - **Zone A mode** / **Zone B mode** (lit buttons) — *Polyphonic* (passthrough of that zone's own channels, unchanged channel indices, so downstream polyphonic modules never see a spurious retrigger) or *Monophonic* (a single, true-legato voice — see above — reduced per that zone's priority rule below).
 
 **Inputs**
-- **V/OCT**, **Gate**, **Velocity**, **Aftertouch**, **Retrigger** — the 5 polyphonic lanes from Core MIDI-CV (or an upstream Al Splitter's zone outputs).
+- **V/OCT**, **Gate**, **Velocity**, **Aftertouch**, **Retrigger** — the 5 polyphonic lanes from Core MIDI-CV (or an upstream Zones module's own zone outputs).
 
 **Outputs** (×2, one set per zone)
 - **V/OCT**, **Gate**, **Velocity**, **Aftertouch**, **Retrigger** — Zone A's and Zone B's own copies of the 5 input lanes, filtered/reduced per that zone's mode.
@@ -76,20 +76,20 @@ Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below
 **Context menu**
 - **Zone A priority (when monophonic)** / **Zone B priority (when monophonic)** — which held note plays when that zone is in Monophonic mode and more than one note overlaps: *Last note*, *Highest note*, or *Lowest note*.
 
-![Al Splitter's mono priority submenus](docs/images/AlSplitter_Menu_Priority.png)
+![Zones' mono priority submenus](docs/images/Zones_Menu_Priority.png)
 
 **Patch ideas**
-- The one-keyboard, one-MIDI-channel setup this module exists for: patch Core MIDI-CV straight into one Al Splitter to get a simple upper/lower keyboard split, or chain two or three together to build several independent zones — bass on the lowest, chords in the middle, lead on top — all from a single physical keyboard.
+- The one-keyboard, one-MIDI-channel setup this module exists for: patch Core MIDI-CV straight into one Zones module to get a simple upper/lower keyboard split, or chain two or three together to build several independent zones — bass on the lowest, chords in the middle, lead on top — all from a single physical keyboard.
 - Set a zone to Monophonic with *Highest note* priority for a simple top-note lead line while still holding chords underneath in the other (Polyphonic) zone.
 - Set the bass zone to Monophonic with *Last note* priority and play it legato (overlapping key presses) for true monosynth-style basslines, gate and envelope behaving exactly like a real analog mono synth would expect.
 
-## Al Gate
+## Pads
 
-![Al Gate panel](docs/images/AlGate.png)
+![Pads panel](docs/images/Pads.png)
 
 Its headline use case is live performance with a MIDI pad controller — an Akai MPD/MPC-style pad grid, a Novation Launchpad Pro, an Ableton Push, or any other velocity- and/or polyphonic-aftertouch-sensitive controller (see Patch ideas below): learn each pad once and it becomes its own independently expressive CV voice.
 
-Technically, it's like Cardinal/Rack core's **MIDI-Gate** module, but driven by a polyphonic V/OCT + GATE cable instead of MIDI directly (typically from Core MIDI-CV, or from one of Al Splitter's zones) — 16 gate outputs, one per learned note. Each output goes high whenever any incoming polyphonic channel currently carries that exact note with its gate high.
+Technically, it's like Cardinal/Rack core's **MIDI-Gate** module, but driven by a polyphonic V/OCT + GATE cable instead of MIDI directly (typically from Core MIDI-CV, or from one of Zones' zones) — 16 gate outputs, one per learned note. Each output goes high whenever any incoming polyphonic channel currently carries that exact note with its gate high.
 
 **The note display**
 
@@ -103,7 +103,7 @@ Assigning a note to one cell automatically clears it from any other cell that he
 The left column of ports (outputs 1–8, top to bottom) feeds from the display's left column of cells; the right column of ports (outputs 9–16) feeds from the display's right column, in the same top-to-bottom order.
 
 **Inputs**
-- **V/OCT**, **Gate** — the polyphonic pitch/gate pair to learn notes from and gate against (from Core MIDI-CV, or an Al Splitter zone).
+- **V/OCT**, **Gate** — the polyphonic pitch/gate pair to learn notes from and gate against (from Core MIDI-CV, or a Zones output).
 
 **Outputs**
 - **Gate 1–16** — one gate per learned cell, high (10V) whenever some incoming channel currently holds that exact note with its gate high, low (0V) otherwise (including for any cell left at "--").
@@ -112,22 +112,22 @@ The left column of ports (outputs 1–8, top to bottom) feeds from the display's
 
 Adds an expander directly, already cabled and positioned, instead of pulling it from the module browser and connecting it by hand:
 
-![Al Gate's add-expander menu items](docs/images/AlGate_Menu_AddExpander.png)
+![Pads' add-expander menu items](docs/images/Pads_Menu_AddExpander.png)
 
-- **Add an expander** — creates an Al Gate Expander immediately to the right of Al Gate, or to the right of the last expander already chained there if one or more are already attached. Add as many as you need, one per poly lane, in any order — give each one its own name via its on-panel label field, see [Al Gate Expander](#al-gate-expander) below for how the chain works.
+- **Add an expander** — creates a PadX immediately to the right of Pads, or to the right of the last expander already chained there if one or more are already attached. Add as many as you need, one per poly lane, in any order — give each one its own name via its on-panel label field, see [PadX](#padx) below for how the chain works.
 
 **Patch ideas**
-- Patch a MIDI pad controller's Core MIDI-CV output into Al Gate, learn each pad once, then add an [Al Gate Expander](#al-gate-expander) per lane you want — one labeled "Velocity", one labeled "Aftertouch" — so gate triggers a drum module, velocity sets its level, and aftertouch modulates a filter, all live and independently per pad.
-- No dedicated pad controller? Reserve a few keys at one end of an ordinary keyboard instead (after splitting them off with [Al Splitter](#al-splitter), if the rest is still being played melodically) and learn each one into Al Gate — every key becomes its own ready-to-patch gate output, without building your own per-note V/OCT comparison logic the way Core's own MIDI-Gate/MIDI-CV combination would otherwise take.
-- Running more than one MIDI controller? Feed each into its own Al Gate (or Al Splitter zone) for a full live rig — drum pads on one controller, melodic zones on another — in the same patch at once.
+- Patch a MIDI pad controller's Core MIDI-CV output into Pads, learn each pad once, then add a [PadX](#padx) per lane you want — one labeled "Velocity", one labeled "Aftertouch" — so gate triggers a drum module, velocity sets its level, and aftertouch modulates a filter, all live and independently per pad.
+- No dedicated pad controller? Reserve a few keys at one end of an ordinary keyboard instead (after splitting them off with [Zones](#zones), if the rest is still being played melodically) and learn each one into Pads — every key becomes its own ready-to-patch gate output, without building your own per-note V/OCT comparison logic the way Core's own MIDI-Gate/MIDI-CV combination would otherwise take.
+- Running more than one MIDI controller? Feed each into its own Pads module (or Zones output) for a full live rig — drum pads on one controller, melodic zones on another — in the same patch at once.
 
-## Al Gate Expander
+## PadX
 
-![Al Gate Expander panel](docs/images/AlGateExpander.png)
+![PadX panel](docs/images/PadX.png)
 
-An Al Gate expander: extracts whatever polyphonic cable is patched into its single input (from Core MIDI-CV, or an Al Splitter zone) into 16 mono outputs, one per note Al Gate has learned — output *N* always carries the value of whichever note is currently learned into Al Gate's cell *N*. The module itself doesn't care which lane that is (Velocity, Aftertouch, Retrigger, or anything else poly) — that's purely a matter of which cable you patch in.
+A Pads expander: extracts whatever polyphonic cable is patched into its single input (from Core MIDI-CV, or a Zones output) into 16 mono outputs, one per note Pads has learned — output *N* always carries the value of whichever note is currently learned into Pads' cell *N*. The module itself doesn't care which lane that is (Velocity, Aftertouch, Retrigger, or anything else poly) — that's purely a matter of which cable you patch in.
 
-Place it directly to the right of Al Gate — or to the right of another Al Gate Expander already chained there (see [Al Gate](#al-gate)'s context menu above); add as many instances as you need, one per lane, in any order — they all relay the same mapping onward to whichever others follow them.
+Place it directly to the right of Pads — or to the right of another PadX already chained there (see [Pads](#pads)'s context menu above); add as many instances as you need, one per lane, in any order — they all relay the same mapping onward to whichever others follow them.
 
 **Label**
 - The single-line field on the panel is a freely-editable text label (click it and type) — it doesn't affect the signal path at all, it's just how you keep track of what you patched into this instance (e.g. "Velocity", "Aftertouch", "Retrigger", or any name you like). It's empty by default, and saved with the patch.
@@ -140,8 +140,8 @@ Place it directly to the right of Al Gate — or to the right of another Al Gate
 - **Lane 1–16** — that note's current value on the patched-in lane (0V while its cell is unassigned, its note isn't currently held, or the input's channel count doesn't reach that cell's channel — see Lights below).
 
 **Lights** — one status LED, showing one of three colors at a time (hover it for a tooltip covering all three):
-- **Yellow** — chained to Al Gate (directly or through other expanders), but nothing patched into this instance's own input yet.
-- **Red** — chained and patched in, but this instance's own cable has a different channel count than Al Gate's V/OCT + Gate cable; outputs for cells beyond its channel count read 0V instead of whatever note Al Gate has learned there.
+- **Yellow** — chained to Pads (directly or through other expanders), but nothing patched into this instance's own input yet.
+- **Red** — chained and patched in, but this instance's own cable has a different channel count than Pads' V/OCT + Gate cable; outputs for cells beyond its channel count read 0V instead of whatever note Pads has learned there.
 - **Green** — chained, patched in, and channel counts match: fully working.
 
-**Patch ideas** — see [Al Gate](#al-gate) above.
+**Patch ideas** — see [Pads](#pads) above.

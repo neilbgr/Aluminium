@@ -6,7 +6,7 @@ Plugin *pluginInstance;
 void init(Plugin *p) {
     pluginInstance = p;
     loadAluminiumThemeMode();
-    p->addModel(modelAlSplitter);
-    p->addModel(modelAlGate);
-    p->addModel(modelAlGateExpander);
+    p->addModel(modelZones);
+    p->addModel(modelPads);
+    p->addModel(modelPadX);
 }

@@ -5,6 +5,6 @@ using namespace rack;
 
 extern Plugin *pluginInstance;
 
-extern Model *modelAlSplitter;
-extern Model *modelAlGate;
-extern Model *modelAlGateExpander;
+extern Model *modelZones;
+extern Model *modelPads;
+extern Model *modelPadX;

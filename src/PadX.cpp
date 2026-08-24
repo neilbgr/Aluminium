@@ -1,17 +1,17 @@
 #include "plugin.hpp"
 #include "PanelTheme.hpp"
 #include "AlPanel.hpp"
-#include "AlGateExpander.hpp"
+#include "PadX.hpp"
 
-// Expander for AlGate: mirrors AlGate's current note->channel mapping onto
+// Expander for Pads: mirrors Pads' current note->channel mapping onto
 // whatever polyphonic cable is patched into its single input (from Core
-// MIDI-CV / AlSplitter), one output per of AlGate's 16 cells. Only produces
-// real output while chained (directly, or through another AlGate expander)
-// to an AlGate instance to its left. The "label" field is purely cosmetic —
+// MIDI-CV / Zones), one output per of Pads' 16 cells. Only produces
+// real output while chained (directly, or through another PadX) to a
+// Pads instance to its left. The "label" field is purely cosmetic —
 // process() never depends on it, it just lets the user note what they
 // patched in (Velocity, Aftertouch, Retrigger, or anything else).
 
-struct AlGateExpander : Module {
+struct PadX : Module {
     enum ParamIds {
         NUM_PARAMS
     };
@@ -37,7 +37,7 @@ struct AlGateExpander : Module {
     // cable back to empty without also wiping out a name the user chose.
     bool labelFromCable = false;
 
-    AlGateExpander() {
+    PadX() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
         configInput(LANE_INPUT, "Lane (poly)");
         for (int id = 0; id < 16; id++)
@@ -49,16 +49,16 @@ struct AlGateExpander : Module {
         // rather than each describing only its own color.
         static const char* laneStatusName = "Lane status";
         static const char* laneStatusDescription =
-            " - Red: patched, but its channel count doesn't match Al Gate's V/OCT + Gate cable — outputs beyond its channel count read 0V.\n"
-            " - Yellow: chained to Al Gate, but nothing patched into this lane's input yet.\n"
+            " - Red: patched, but its channel count doesn't match Pads' V/OCT + Gate cable — outputs beyond its channel count read 0V.\n"
+            " - Yellow: chained to Pads, but nothing patched into this lane's input yet.\n"
             " - Green: patched and channel counts match.";
         configLight(CONNECTED_LIGHT, laneStatusName)->description = laneStatusDescription;
         configLight(MISMATCH_LIGHT, laneStatusName)->description = laneStatusDescription;
         configLight(OK_LIGHT, laneStatusName)->description = laneStatusDescription;
         updatePortNames();
 
-        leftExpander.producerMessage = new AlGateExpanderMessage;
-        leftExpander.consumerMessage = new AlGateExpanderMessage;
+        leftExpander.producerMessage = new PadXMessage;
+        leftExpander.consumerMessage = new PadXMessage;
     }
 
     // Ports aren't re-configured per instance (configInput/configOutput only
@@ -79,21 +79,21 @@ struct AlGateExpander : Module {
         updatePortNames();
     }
 
-    ~AlGateExpander() {
-        delete (AlGateExpanderMessage*) leftExpander.producerMessage;
-        delete (AlGateExpanderMessage*) leftExpander.consumerMessage;
+    ~PadX() {
+        delete (PadXMessage*) leftExpander.producerMessage;
+        delete (PadXMessage*) leftExpander.consumerMessage;
     }
 
     static bool motherAt(Module* neighbor) {
-        return neighbor && (neighbor->model == modelAlGate || alGateIsExpanderModel(neighbor->model));
+        return neighbor && (neighbor->model == modelPads || padIsExpanderModel(neighbor->model));
     }
 
     void process(const ProcessArgs&) override {
-        AlGateExpanderMessage activeChannel;
+        PadXMessage activeChannel;
         bool present = motherAt(leftExpander.module);
 
         if (present)
-            activeChannel = *(AlGateExpanderMessage*) leftExpander.consumerMessage;
+            activeChannel = *(PadXMessage*) leftExpander.consumerMessage;
         else
             for (int id = 0; id < 16; id++)
                 activeChannel.activeChannel[id] = -1;
@@ -111,7 +111,7 @@ struct AlGateExpander : Module {
         lights[MISMATCH_LIGHT].setBrightness(mismatch ? 1.f : 0.f);
         lights[OK_LIGHT].setBrightness(ok ? 1.f : 0.f);
 
-        // `c` indexes AlGate's own V/OCT+GATE cable, which may have a
+        // `c` indexes Pads' own V/OCT+GATE cable, which may have a
         // different channel count than our own LANE_INPUT cable — don't
         // rely on the far end having zeroed its unused channels, check
         // ourselves so a channel-count mismatch reads as silence (0V)
@@ -123,8 +123,8 @@ struct AlGateExpander : Module {
             outputs[LANE_OUTPUTS + id].setVoltage(inRange ? inputs[LANE_INPUT].getVoltage(c) : 0.f);
         }
 
-        if (rightExpander.module && alGateIsExpanderModel(rightExpander.module->model))
-            alGateForwardMessage(this, activeChannel);
+        if (rightExpander.module && padIsExpanderModel(rightExpander.module->model))
+            padForwardMessage(this, activeChannel);
     }
 
     json_t* dataToJson() override {
@@ -145,15 +145,15 @@ struct AlGateExpander : Module {
 };
 
 #ifndef HEADLESS
-struct AlGateExpanderLabelField : LedDisplayTextField {
-    AlGateExpander* module = nullptr;
+struct PadXLabelField : LedDisplayTextField {
+    PadX* module = nullptr;
     // Suppresses onChange's "user edited it" handling while step() is the
     // one calling setText() to mirror an external change (auto-fill from a
     // cable, or patch load) — only a real keystroke/paste/etc. should ever
     // lower labelFromCable.
     bool syncingFromModule = false;
 
-    AlGateExpanderLabelField() {
+    PadXLabelField() {
         multiline = false;
         placeholder = "Label";
         // LedDisplayTextField's own default (5, 5) is tuned for a much
@@ -183,18 +183,18 @@ struct AlGateExpanderLabelField : LedDisplayTextField {
     }
 };
 
-struct AlGateExpanderWidget : ModuleWidget {
+struct PadXWidget : ModuleWidget {
     PortWidget* laneInputWidget = nullptr;
     bool laneInputWasConnected = false;
 
-    AlGateExpanderWidget(AlGateExpander* module) {
+    PadXWidget(PadX* module) {
         setModule(module);
 
         const float panelWidth = 25.4f;
 
         setPanel(new AlPanel(mm2px(Vec(panelWidth, 128.5f)),
-            Svg::load(asset::plugin(pluginInstance, "res/AlGateExpander_Silk_Light.svg")),
-            Svg::load(asset::plugin(pluginInstance, "res/AlGateExpander_Silk_Dark.svg"))));
+            Svg::load(asset::plugin(pluginInstance, "res/PadX_Silk_Light.svg")),
+            Svg::load(asset::plugin(pluginInstance, "res/PadX_Silk_Dark.svg"))));
 
         addChild(createWidget<AlScrewComponent>(Vec(0, 0)));
         addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 1 * RACK_GRID_WIDTH, 0)));
@@ -208,7 +208,7 @@ struct AlGateExpanderWidget : ModuleWidget {
         const float labelCenterY = 14.f, labelWidth = 19.4f, labelHeight = 6.f;
         LedDisplay* labelDisplay = createWidget<LedDisplay>(mm2px(Vec(panelWidth / 2.f - labelWidth / 2.f, labelCenterY - labelHeight / 2.f)));
         labelDisplay->box.size = mm2px(Vec(labelWidth, labelHeight));
-        AlGateExpanderLabelField* labelField = createWidget<AlGateExpanderLabelField>(Vec(0, 0));
+        PadXLabelField* labelField = createWidget<PadXLabelField>(Vec(0, 0));
         labelField->box.size = labelDisplay->box.size;
         labelField->module = module;
         labelDisplay->addChild(labelField);
@@ -218,11 +218,11 @@ struct AlGateExpanderWidget : ModuleWidget {
         const float displayCenterX = panelWidth / 2.f;
         const float inputsZoneOffsetY = 22.f;
 
-        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, AlGateExpander::CONNECTED_LIGHT));
-        addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, AlGateExpander::MISMATCH_LIGHT));
-        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, AlGateExpander::OK_LIGHT));
+        addChild(createLightCentered<SmallLight<YellowLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, PadX::CONNECTED_LIGHT));
+        addChild(createLightCentered<SmallLight<RedLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, PadX::MISMATCH_LIGHT));
+        addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(1.8f, inputsZoneOffsetY)), module, PadX::OK_LIGHT));
 
-        laneInputWidget = createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, AlGateExpander::LANE_INPUT);
+        laneInputWidget = createInputCentered<AlPortComponentIn>(mm2px(Vec(displayCenterX, inputsZoneOffsetY)), module, PadX::LANE_INPUT);
         addInput(laneInputWidget);
 
         const float outputsZoneOffsetY = 28.f;
@@ -230,8 +230,8 @@ struct AlGateExpanderWidget : ModuleWidget {
 
         for (int row = 0; row < 8; row++) {
             float rowY = outputsZoneOffsetY + outputsZoneHeight * (row + 0.5f) / 8.f;
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, AlGateExpander::LANE_OUTPUTS + row));
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, AlGateExpander::LANE_OUTPUTS + 8 + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, PadX::LANE_OUTPUTS + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, PadX::LANE_OUTPUTS + 8 + row));
         }
     }
 
@@ -244,7 +244,7 @@ struct AlGateExpanderWidget : ModuleWidget {
     void step() override {
         ModuleWidget::step();
 
-        AlGateExpander* mod = dynamic_cast<AlGateExpander*>(module);
+        PadX* mod = dynamic_cast<PadX*>(module);
         if (!mod || !laneInputWidget)
             return;
 
@@ -282,14 +282,14 @@ struct AlGateExpanderWidget : ModuleWidget {
     }
 };
 #else
-struct AlGateExpanderWidget : ModuleWidget {
-    AlGateExpanderWidget(AlGateExpander* module) {
+struct PadXWidget : ModuleWidget {
+    PadXWidget(PadX* module) {
         setModule(module);
-        addInput(createInput<PJ301MPort>({}, module, AlGateExpander::LANE_INPUT));
+        addInput(createInput<PJ301MPort>({}, module, PadX::LANE_INPUT));
         for (int id = 0; id < 16; id++)
-            addOutput(createOutput<PJ301MPort>({}, module, AlGateExpander::LANE_OUTPUTS + id));
+            addOutput(createOutput<PJ301MPort>({}, module, PadX::LANE_OUTPUTS + id));
     }
 };
 #endif
 
-Model* modelAlGateExpander = createModel<AlGateExpander, AlGateExpanderWidget>("AlGateExpander");
+Model* modelPadX = createModel<PadX, PadXWidget>("PadX");

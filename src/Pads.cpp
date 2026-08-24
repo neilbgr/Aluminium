@@ -1,13 +1,13 @@
 #include "plugin.hpp"
 #include "PanelTheme.hpp"
 #include "AlPanel.hpp"
-#include "AlGateExpander.hpp"
+#include "PadX.hpp"
 #include <algorithm>
 #include <cmath>
 
 // Like Cardinal/Rack core's "MIDI-Gate" (18 gate outputs, one per learned
 // note, driven by MIDI note-on/off) but driven instead by a polyphonic
-// V/OCT + GATE cable (typically from Core MIDI-CV or AlSplitter) — 16 gate
+// V/OCT + GATE cable (typically from Core MIDI-CV or Zones) — 16 gate
 // outputs, one per learned note. Each output is high whenever any incoming
 // poly channel currently carries that exact pitch with its gate high.
 //
@@ -19,17 +19,16 @@
 // instead of 16 separate LedDisplayChoice widgets. Backspace/Delete clears
 // a cell (shows "--", that output stays low).
 //
-// AlGateExpander (a separate expander module, one instance per poly lane you
-// need) reads which poly channel is currently satisfying each of these 16
-// cells via AlGateExpanderMessage, so it can mirror the same note->channel
-// mapping onto whatever lane is patched into it without duplicating the
-// note-learning UI.
+// PadX (a separate expander module, one instance per poly lane you need)
+// reads which poly channel is currently satisfying each of these 16 cells
+// via PadXMessage, so it can mirror the same note->channel mapping onto
+// whatever lane is patched into it without duplicating the note-learning UI.
 
 static const char* AL_GATE_NOTE_NAMES[12] = {
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
 };
 
-static std::string alGateNoteName(int8_t note) {
+static std::string padNoteName(int8_t note) {
     if (note < 0)
         return "--";
     int oct = note / 12 - 1;
@@ -37,7 +36,7 @@ static std::string alGateNoteName(int8_t note) {
     return std::string(AL_GATE_NOTE_NAMES[semi]) + std::to_string(oct);
 }
 
-struct AlGate : Module {
+struct Pads : Module {
     enum ParamIds {
         NUM_PARAMS
     };
@@ -60,9 +59,9 @@ struct AlGate : Module {
     int learningId = -1;
     bool prevGateHigh[16] = {};
 
-    AlGateExpanderMessage expMsg = {};
+    PadXMessage expMsg = {};
 
-    AlGate() {
+    Pads() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
         configInput(PITCH_INPUT, "Pitch (poly)");
         configInput(GATE_INPUT, "Gate (poly)");
@@ -134,8 +133,8 @@ struct AlGate : Module {
         for (int c = channels; c < 16; c++)
             prevGateHigh[c] = false;
 
-        if (rightExpander.module && alGateIsExpanderModel(rightExpander.module->model))
-            alGateForwardMessage(this, expMsg);
+        if (rightExpander.module && padIsExpanderModel(rightExpander.module->model))
+            padForwardMessage(this, expMsg);
     }
 
     json_t* dataToJson() override {
@@ -169,12 +168,12 @@ struct AlGate : Module {
 // (CardinalNoteChoice::onSelectText/onSelectKey/onDeselect), adapted to one
 // widget tracking a single "selected" cell instead of 16 widgets each
 // tracking their own.
-struct AlGateNoteGridDisplay : OpaqueWidget {
-    AlGate* module;
+struct PadsNoteGridDisplay : OpaqueWidget {
+    Pads* module;
     int selectedId = -1;
     int8_t focusNote = -1;
 
-    AlGateNoteGridDisplay(AlGate* module, Vec size) : module(module) {
+    PadsNoteGridDisplay(Pads* module, Vec size) : module(module) {
         box.size = size;
     }
 
@@ -300,7 +299,7 @@ struct AlGateNoteGridDisplay : OpaqueWidget {
             }
 
             int8_t note = module ? module->learnedNotes[id] : (int8_t) (36 + id);
-            std::string label = (selected && focusNote >= 0) ? alGateNoteName(focusNote) : alGateNoteName(note);
+            std::string label = (selected && focusNote >= 0) ? padNoteName(focusNote) : padNoteName(note);
 
             nvgFillColor(args.vg, (armed || selected) ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee));
             nvgText(args.vg, cx, cy, label.c_str(), NULL);
@@ -308,12 +307,12 @@ struct AlGateNoteGridDisplay : OpaqueWidget {
     }
 };
 
-struct AlGateWidget : ModuleWidget {
-    AlGateWidget(AlGate* module) {
+struct PadsWidget : ModuleWidget {
+    PadsWidget(Pads* module) {
         setModule(module);
         setPanel(new AlPanel(mm2px(Vec(45.72f, 128.5f)),
-            Svg::load(asset::plugin(pluginInstance, "res/AlGate_Silk_Light.svg")),
-            Svg::load(asset::plugin(pluginInstance, "res/AlGate_Silk_Dark.svg"))));
+            Svg::load(asset::plugin(pluginInstance, "res/Pads_Silk_Light.svg")),
+            Svg::load(asset::plugin(pluginInstance, "res/Pads_Silk_Dark.svg"))));
 
         addChild(createWidget<AlScrewComponent>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
@@ -321,15 +320,15 @@ struct AlGateWidget : ModuleWidget {
         addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
         // Placeholder coordinates — panel layout WIP in Inkscape, same
-        // approach as AlSplitter's own widget constructor. Row 1: the two
+        // approach as Zones' own widget constructor. Row 1: the two
         // poly inputs. Below that: col1 (8 gate outputs) | col2 (2x8 note
         // display) | col3 (8 gate outputs), rows aligned with the display's
         // own 8 internal rows.
         const float displayCenterX = 45.72f / 2.f;
         const float inputsZoneOffsetY = 22.f;
         
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(15.24f, inputsZoneOffsetY)), module, AlGate::PITCH_INPUT));
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(30.48f, inputsZoneOffsetY)), module, AlGate::GATE_INPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(15.24f, inputsZoneOffsetY)), module, Pads::PITCH_INPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(30.48f, inputsZoneOffsetY)), module, Pads::GATE_INPUT));
 
         const float colLeft = 8.f, colRight = 37.72f;
         const float outputsZoneOffsetY = 28.f;
@@ -337,26 +336,26 @@ struct AlGateWidget : ModuleWidget {
 
         Vec displaySize = mm2px(Vec(18.f, outputsZoneHeight));
         Vec displayPos = mm2px(Vec(displayCenterX, outputsZoneOffsetY + outputsZoneHeight / 2.f)).minus(displaySize.div(2));
-        AlGateNoteGridDisplay* display = new AlGateNoteGridDisplay(module, displaySize);
+        PadsNoteGridDisplay* display = new PadsNoteGridDisplay(module, displaySize);
         display->box.pos = displayPos;
         addChild(display);
 
         for (int row = 0; row < 8; row++) {
             float rowY = outputsZoneOffsetY + outputsZoneHeight * (row + 0.5f) / 8.f;
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, AlGate::GATE_OUTPUTS + row));
-            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, AlGate::GATE_OUTPUTS + 8 + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colLeft, rowY)), module, Pads::GATE_OUTPUTS + row));
+            addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(colRight, rowY)), module, Pads::GATE_OUTPUTS + 8 + row));
         }
     }
 
-    // Appends `model` after the end of the existing AlGateExpander chain to
-    // this AlGate's right (any number of instances can be stacked at once,
-    // forwarded right to left — see AlGateExpander.hpp), instead of always
-    // placing it immediately next to AlGate itself where it would overlap
+    // Appends `model` after the end of the existing PadX chain to this
+    // Pads' right (any number of instances can be stacked at once,
+    // forwarded right to left — see PadX.hpp), instead of always
+    // placing it immediately next to Pads itself where it would overlap
     // an expander already there. Mirrors Venom's own VenomWidget::
     // addExpander (Venom.hpp), adapted to walk the chain first.
-    void addAlGateExpanderModel(Model* model) {
+    void addPadXModel(Model* model) {
         Module* last = module;
-        while (last->rightExpander.module && alGateIsExpanderModel(last->rightExpander.module->model))
+        while (last->rightExpander.module && padIsExpanderModel(last->rightExpander.module->model))
             last = last->rightExpander.module;
         ModuleWidget* lastWidget = (last == module) ? this : APP->scene->rack->getModule(last->id);
 
@@ -378,19 +377,19 @@ struct AlGateWidget : ModuleWidget {
 
         menu->addChild(new MenuSeparator);
         menu->addChild(createMenuItem("Add an expander", "",
-            [this]() { addAlGateExpanderModel(modelAlGateExpander); }));
+            [this]() { addPadXModel(modelPadX); }));
     }
 };
 #else
-struct AlGateWidget : ModuleWidget {
-    AlGateWidget(AlGate* module) {
+struct PadsWidget : ModuleWidget {
+    PadsWidget(Pads* module) {
         setModule(module);
-        addInput(createInput<PJ301MPort>({}, module, AlGate::PITCH_INPUT));
-        addInput(createInput<PJ301MPort>({}, module, AlGate::GATE_INPUT));
+        addInput(createInput<PJ301MPort>({}, module, Pads::PITCH_INPUT));
+        addInput(createInput<PJ301MPort>({}, module, Pads::GATE_INPUT));
         for (int id = 0; id < 16; id++)
-            addOutput(createOutput<PJ301MPort>({}, module, AlGate::GATE_OUTPUTS + id));
+            addOutput(createOutput<PJ301MPort>({}, module, Pads::GATE_OUTPUTS + id));
     }
 };
 #endif
 
-Model* modelAlGate = createModel<AlGate, AlGateWidget>("AlGate");
+Model* modelPads = createModel<Pads, PadsWidget>("Pads");

@@ -102,7 +102,7 @@ struct SplitParamQuantity : ParamQuantity {
     }
 };
 
-struct AlSplitter : Module {
+struct Zones : Module {
     enum ParamIds {
         SPLIT_PARAM,
         LEARN_PARAM,
@@ -174,7 +174,7 @@ struct AlSplitter : Module {
     bool learnSuppressed[16];
     dsp::SchmittTrigger rtrgTrigger[16];
 
-    AlSplitter() {
+    Zones() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
         configParam<SplitParamQuantity>(SPLIT_PARAM, -4.f, 4.f, 0.f, "Split point");
         configSwitch(LEARN_PARAM, 0.f, 1.f, 0.f, "Learn split point", {"Idle", "Listening for next note"});
@@ -408,9 +408,9 @@ struct AlSplitter : Module {
 // since its content changes continuously). Uses Rack's own bundled
 // ShareTechMono font (asset::system) rather than shipping our own copy.
 struct SplitNoteDisplay : TransparentWidget {
-    AlSplitter* module;
+    Zones* module;
 
-    SplitNoteDisplay(AlSplitter* module, Vec size) : module(module) {
+    SplitNoteDisplay(Zones* module, Vec size) : module(module) {
         box.size = size;
     }
 
@@ -422,7 +422,7 @@ struct SplitNoteDisplay : TransparentWidget {
         nvgStrokeColor(args.vg, nvgRGBA(0x50, 0x50, 0x50, 0xff));
         nvgStroke(args.vg);
 
-        float voltage = module ? module->params[AlSplitter::SPLIT_PARAM].getValue() : 0.f;
+        float voltage = module ? module->params[Zones::SPLIT_PARAM].getValue() : 0.f;
         float freq = dsp::FREQ_C4 * std::pow(2.f, voltage);
 
         std::string noteStr = voltageToNoteName(voltage);
@@ -444,12 +444,12 @@ struct SplitNoteDisplay : TransparentWidget {
     }
 };
 
-struct AlSplitterWidget : ModuleWidget {
-    AlSplitterWidget(AlSplitter* module) {
+struct ZonesWidget : ModuleWidget {
+    ZonesWidget(Zones* module) {
         setModule(module);
         setPanel(new AlPanel(mm2px(Vec(55.88f, 128.5f)),
-            Svg::load(asset::plugin(pluginInstance, "res/AlSplitter_Silk_Light.svg")),
-            Svg::load(asset::plugin(pluginInstance, "res/AlSplitter_Silk_Dark.svg"))));
+            Svg::load(asset::plugin(pluginInstance, "res/Zones_Silk_Light.svg")),
+            Svg::load(asset::plugin(pluginInstance, "res/Zones_Silk_Dark.svg"))));
 
         addChild(createWidget<AlScrewComponent>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<AlScrewComponent>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
@@ -484,47 +484,47 @@ struct AlSplitterWidget : ModuleWidget {
             display->box.pos = mm2px(Vec(displayCenterX, 20.f)).minus(size.div(2));
             addChild(display);
         }
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(displayCenterX, 36.f)), module, AlSplitter::SPLIT_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(displayCenterX, 36.f)), module, Zones::SPLIT_PARAM));
 
         // Row 2: LEARN_PARAM | "Learn" | "A" | "B"
         addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<RedLight>>>(
-            mm2px(Vec(col1, row2)), module, AlSplitter::LEARN_PARAM, AlSplitter::LEARN_LIGHT));
+            mm2px(Vec(col1, row2)), module, Zones::LEARN_PARAM, Zones::LEARN_LIGHT));
         // col2: "Learn", col3: "A", col4: "B" (silkscreen)
 
         // Row 3: PITCH_INPUT | "V/Oct" | ZONE_A_PITCH_OUTPUT | ZONE_B_PITCH_OUTPUT
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row3)), module, AlSplitter::PITCH_INPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row3)), module, AlSplitter::ZONE_A_PITCH_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row3)), module, AlSplitter::ZONE_B_PITCH_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row3)), module, Zones::PITCH_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row3)), module, Zones::ZONE_A_PITCH_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row3)), module, Zones::ZONE_B_PITCH_OUTPUT));
 
         // Row 4: GATE_INPUT | "Gate" | ZONE_A_GATE_OUTPUT | ZONE_B_GATE_OUTPUT
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row4)), module, AlSplitter::GATE_INPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row4)), module, AlSplitter::ZONE_A_GATE_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row4)), module, AlSplitter::ZONE_B_GATE_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row4)), module, Zones::GATE_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row4)), module, Zones::ZONE_A_GATE_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row4)), module, Zones::ZONE_B_GATE_OUTPUT));
 
         // Row 5: VEL_INPUT | "Velocity" | ZONE_A_VEL_OUTPUT | ZONE_B_VEL_OUTPUT
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row5)), module, AlSplitter::VEL_INPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row5)), module, AlSplitter::ZONE_A_VEL_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row5)), module, AlSplitter::ZONE_B_VEL_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row5)), module, Zones::VEL_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row5)), module, Zones::ZONE_A_VEL_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row5)), module, Zones::ZONE_B_VEL_OUTPUT));
 
         // Row 6: AFT_INPUT | "Aftertouch" | ZONE_A_AFT_OUTPUT | ZONE_B_AFT_OUTPUT
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row6)), module, AlSplitter::AFT_INPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row6)), module, AlSplitter::ZONE_A_AFT_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row6)), module, AlSplitter::ZONE_B_AFT_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row6)), module, Zones::AFT_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row6)), module, Zones::ZONE_A_AFT_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row6)), module, Zones::ZONE_B_AFT_OUTPUT));
 
         // Row 7: RTRG_INPUT | "Retrigger" | ZONE_A_RTRIG_OUTPUT | ZONE_B_RTRIG_OUTPUT
-        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row7)), module, AlSplitter::RTRG_INPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row7)), module, AlSplitter::ZONE_A_RTRIG_OUTPUT));
-        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row7)), module, AlSplitter::ZONE_B_RTRIG_OUTPUT));
+        addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(col1, row7)), module, Zones::RTRG_INPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row7)), module, Zones::ZONE_A_RTRIG_OUTPUT));
+        addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row7)), module, Zones::ZONE_B_RTRIG_OUTPUT));
 
         // Row 8: (empty) | "Mono" | ZONE_A_MODE_PARAM | ZONE_B_MODE_PARAM
         addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(
-            mm2px(Vec(col3, row8)), module, AlSplitter::ZONE_A_MODE_PARAM, AlSplitter::ZONE_A_MODE_LIGHT));
+            mm2px(Vec(col3, row8)), module, Zones::ZONE_A_MODE_PARAM, Zones::ZONE_A_MODE_LIGHT));
         addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(
-            mm2px(Vec(col4, row8)), module, AlSplitter::ZONE_B_MODE_PARAM, AlSplitter::ZONE_B_MODE_LIGHT));
+            mm2px(Vec(col4, row8)), module, Zones::ZONE_B_MODE_PARAM, Zones::ZONE_B_MODE_LIGHT));
     }
 
     void appendContextMenu(Menu* menu) override {
-        AlSplitter* module = dynamic_cast<AlSplitter*>(this->module);
+        Zones* module = dynamic_cast<Zones*>(this->module);
         assert(module);
 
         menu->addChild(new MenuSeparator);
@@ -543,4 +543,4 @@ struct AlSplitterWidget : ModuleWidget {
     }
 };
 
-Model* modelAlSplitter = createModel<AlSplitter, AlSplitterWidget>("AlSplitter");
+Model* modelZones = createModel<Zones, ZonesWidget>("Zones");

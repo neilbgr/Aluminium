@@ -15,24 +15,24 @@
   "donateUrl": "",
   "modules": [
     {
-      "slug": "AlSplitter",
-      "name": "Al Splitter",
+      "slug": "Zones",
+      "name": "Zones",
       "description": "Splits a polyphonic MIDI-CV keyboard signal (V/OCT, GATE, VELOCITY, AFTERTOUCH, RETRIGGER) into two note-range zones, each independently configurable as polyphonic passthrough or monophonic with note-priority (last/highest/lowest) and true legato gate behavior",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-splitter",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#zones",
       "tags": ["Utility", "Polyphonic"]
     },
     {
-      "slug": "AlGate",
-      "name": "Al Gate",
-      "description": "16 gate outputs, one per learned note, driven by a polyphonic V/OCT + GATE cable (e.g. from Core MIDI-CV or Al Splitter) instead of MIDI — learn a cell by clicking it and playing (or typing) the note",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-gate",
+      "slug": "Pads",
+      "name": "Pads",
+      "description": "16 gate outputs, one per learned note, driven by a polyphonic V/OCT + GATE cable (e.g. from Core MIDI-CV or Zones) instead of MIDI — learn a cell by clicking it and playing (or typing) the note",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#pads",
       "tags": ["Utility", "Polyphonic"]
     },
     {
-      "slug": "AlGateExpander",
-      "name": "Al Gate Expander",
-      "description": "Al Gate expander: extracts a freely-labeled polyphonic lane (e.g. Velocity, Aftertouch, Retrigger) into 16 mono outputs, one per note Al Gate has learned",
-      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#al-gate-expander",
+      "slug": "PadX",
+      "name": "PadX",
+      "description": "Pads expander: extracts a freely-labeled polyphonic lane (e.g. Velocity, Aftertouch, Retrigger) into 16 mono outputs, one per note Pads has learned",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#padx",
       "tags": ["Utility", "Polyphonic", "Expander"]
     }
   ]
