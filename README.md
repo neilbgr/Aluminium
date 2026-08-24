@@ -1,11 +1,11 @@
 # Aluminium — User Manual
 
-**Aluminium** is a small collection of MIDI-CV utility modules for VCV Rack / Cardinal, born out of a very unglamorous real-world problem: owning only one MIDI master keyboard, one that transmits on a single channel, and wanting more out of it than Rack's core **MIDI-CV** module alone gives you.
+**Aluminium** is a small collection of MIDI-CV utility modules for VCV Rack / Cardinal, all built around one goal: getting more out of real MIDI keyboards and controllers in a live performance patch, beyond what Rack's core **MIDI-CV** module alone gives you. That covers a wide range of setups — from the simplest one, owning a single MIDI master keyboard on one channel and wanting to split it into two or more independently-playable zones, all the way up to a rig built around an advanced controller with velocity- and polyphonic-aftertouch-sensitive pads, where every pad becomes its own fully expressive CV voice.
 
 ![All Aluminium panels, Dark theme](docs/images/AllModules_Dark.png)
 
 - **Al Splitter** turns that one keyboard into as many independent note-range zones as you want. Chain several Al Splitters together (feed one zone's output into the next Al Splitter's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
-- **Al Gate** and its expander (**Al Gate Expander**) solve a different flavor of the same problem: a keyboard with no drum pads. Reserve a handful of keys — after a split, if the rest of the keyboard is still being played melodically — and Al Gate turns each one into its own dedicated gate output: one gate per learned note, instead of building your own V/OCT comparison logic the way Core's own MIDI-Gate module would otherwise require. Add one Al Gate Expander per poly lane you want to pull out too (velocity and/or polyphonic aftertouch, for instance), naming each one yourself via its on-panel label. The same combination doubles as a clean way to map an external MIDI controller with velocity- and poly-aftertouch-sensitive pads straight through to independent CV, one lane per pad.
+- **Al Gate** and its expander (**Al Gate Expander**) exist for live performance with MIDI pad controllers: patch in a controller whose pads are velocity- and/or polyphonic-aftertouch-sensitive, learn each pad once, and every pad becomes its own independent, fully expressive CV voice — gate, velocity, aftertouch, whatever lane you need — with no MIDI-mapping software and no hand-built V/OCT comparison logic. The same trick works just as well on a handful of keys reserved off the end of an ordinary keyboard (after a split, if the rest is still being played melodically), and nothing ties either module to a single input — feed one Al Gate from one controller's pads while an Al Splitter zone handles another controller's keys, and build a full live rig from several MIDI controllers at once, all inside the same patch.
 
 | Module                            | What it does                                                                    |
 |------------------------------------|----------------------------------------------------------------------------------|
@@ -87,7 +87,9 @@ Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below
 
 ![Al Gate panel](docs/images/AlGate.png)
 
-Like Cardinal/Rack core's **MIDI-Gate** module, but driven by a polyphonic V/OCT + GATE cable instead of MIDI directly (typically from Core MIDI-CV, or from one of Al Splitter's zones) — 16 gate outputs, one per learned note. Each output goes high whenever any incoming polyphonic channel currently carries that exact note with its gate high.
+Its headline use case is live performance with a MIDI pad controller — an Akai MPD/MPC-style pad grid, a Novation Launchpad Pro, an Ableton Push, or any other velocity- and/or polyphonic-aftertouch-sensitive controller (see Patch ideas below): learn each pad once and it becomes its own independently expressive CV voice.
+
+Technically, it's like Cardinal/Rack core's **MIDI-Gate** module, but driven by a polyphonic V/OCT + GATE cable instead of MIDI directly (typically from Core MIDI-CV, or from one of Al Splitter's zones) — 16 gate outputs, one per learned note. Each output goes high whenever any incoming polyphonic channel currently carries that exact note with its gate high.
 
 **The note display**
 
@@ -115,8 +117,9 @@ Adds an expander directly, already cabled and positioned, instead of pulling it 
 - **Add an expander** — creates an Al Gate Expander immediately to the right of Al Gate, or to the right of the last expander already chained there if one or more are already attached. Add as many as you need, one per poly lane, in any order — give each one its own name via its on-panel label field, see [Al Gate Expander](#al-gate-expander) below for how the chain works.
 
 **Patch ideas**
-- Reserve a few keys at one end of your keyboard (after splitting them off with [Al Splitter](#al-splitter), if the rest is still being played melodically) and learn each one into Al Gate — every key becomes its own ready-to-patch gate output, without building your own per-note V/OCT comparison logic the way Core's own MIDI-Gate/MIDI-CV combination would otherwise take. Perfect for triggering a handful of drum/percussion modules directly, one key per drum.
-- Add an [Al Gate Expander](#al-gate-expander) per lane you want alongside it, e.g. one labeled "Velocity" and one labeled "Aftertouch", to pull out that same note's velocity and (polyphonic) aftertouch too — useful even from a plain keyboard, and just as much a clean way to map an external MIDI controller with velocity-sensitive, polyphonic-aftertouch-sensitive pads straight through to independent CV per pad.
+- Patch a MIDI pad controller's Core MIDI-CV output into Al Gate, learn each pad once, then add an [Al Gate Expander](#al-gate-expander) per lane you want — one labeled "Velocity", one labeled "Aftertouch" — so gate triggers a drum module, velocity sets its level, and aftertouch modulates a filter, all live and independently per pad.
+- No dedicated pad controller? Reserve a few keys at one end of an ordinary keyboard instead (after splitting them off with [Al Splitter](#al-splitter), if the rest is still being played melodically) and learn each one into Al Gate — every key becomes its own ready-to-patch gate output, without building your own per-note V/OCT comparison logic the way Core's own MIDI-Gate/MIDI-CV combination would otherwise take.
+- Running more than one MIDI controller? Feed each into its own Al Gate (or Al Splitter zone) for a full live rig — drum pads on one controller, melodic zones on another — in the same patch at once.
 
 ## Al Gate Expander
 
