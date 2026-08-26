@@ -29,8 +29,9 @@ static const char* AL_GATE_NOTE_NAMES[12] = {
 };
 
 static std::string padNoteName(int8_t note) {
-    if (note < 0)
+    if (note < 0) {
         return "--";
+    }
     int oct = note / 12 - 1;
     int semi = note % 12;
     return std::string(AL_GATE_NOTE_NAMES[semi]) + std::to_string(oct);
@@ -88,8 +89,9 @@ struct Pads : Module {
             prevMatched[id] = false;
         }
         learningId = -1;
-        for (int c = 0; c < 16; c++)
+        for (int c = 0; c < 16; c++) {
             prevGateHigh[c] = false;
+        }
     }
 
     static int noteOf(float voltage) {
@@ -101,9 +103,11 @@ struct Pads : Module {
     // never mapped to two cells at once.
     void setLearnedNote(int id, int8_t note) {
         if (note >= 0) {
-            for (int i = 0; i < 16; i++)
-                if (learnedNotes[i] == note)
+            for (int i = 0; i < 16; i++) {
+                if (learnedNotes[i] == note) {
                     learnedNotes[i] = -1;
+                }
+            }
         }
         learnedNotes[id] = note;
         // A cell's note identity just changed — don't let a stale toggled
@@ -138,8 +142,9 @@ struct Pads : Module {
             bool latchOn = params[LATCH_PARAMS + id].getValue() > 0.5f;
             bool gateHigh;
             if (latchOn) {
-                if (matched && !prevMatched[id])
+                if (matched && !prevMatched[id]) {
                     latchedState[id] = !latchedState[id];
+                }
                 gateHigh = latchedState[id];
             }
             else {
@@ -165,11 +170,13 @@ struct Pads : Module {
         // Channels beyond the current poly width can't have a tracked previous
         // state — clear it so a later channel-count increase isn't seen as a
         // spurious rising edge.
-        for (int c = channels; c < 16; c++)
+        for (int c = channels; c < 16; c++) {
             prevGateHigh[c] = false;
+        }
 
-        if (rightExpander.module && padIsExpanderModel(rightExpander.module->model))
+        if (rightExpander.module && padIsExpanderModel(rightExpander.module->model)) {
             padForwardMessage(this, expMsg);
+        }
     }
 
     json_t* dataToJson() override {
@@ -188,18 +195,22 @@ struct Pads : Module {
     void dataFromJson(json_t* rootJ) override {
         if (json_t* notesJ = json_object_get(rootJ, "notes")) {
             for (int id = 0; id < 16; id++) {
-                if (json_t* noteJ = json_array_get(notesJ, id))
+                if (json_t* noteJ = json_array_get(notesJ, id)) {
                     learnedNotes[id] = (int8_t) json_integer_value(noteJ);
-                else
+                }
+                else {
                     learnedNotes[id] = -1;
+                }
             }
         }
         if (json_t* latchedJ = json_object_get(rootJ, "latched")) {
             for (int id = 0; id < 16; id++) {
-                if (json_t* latchJ = json_array_get(latchedJ, id))
+                if (json_t* latchJ = json_array_get(latchedJ, id)) {
                     latchedState[id] = json_boolean_value(latchJ);
-                else
+                }
+                else {
                     latchedState[id] = false;
+                }
             }
         }
     }
@@ -253,8 +264,9 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     }
 
     void onSelectText(const SelectTextEvent& e) override {
-        if (selectedId < 0)
+        if (selectedId < 0) {
             return;
+        }
 
         const int c = e.codepoint;
         if ('a' <= c && c <= 'g') {
@@ -262,8 +274,9 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             focusNote = majorNotes[c - 'a'];
         }
         else if (c == '#') {
-            if (focusNote >= 0)
+            if (focusNote >= 0) {
                 focusNote += 1;
+            }
         }
         else if ('0' <= c && c <= '9') {
             if (focusNote >= 0) {
@@ -272,8 +285,9 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             }
         }
 
-        if (focusNote < 0)
+        if (focusNote < 0) {
             focusNote = -1;
+        }
 
         e.consume(this);
     }
@@ -289,8 +303,9 @@ struct PadsNoteGridDisplay : OpaqueWidget {
                 OpaqueWidget::onSelectKey(e);
                 return;
             }
-            if (focusNote >= 0)
+            if (focusNote >= 0) {
                 module->setLearnedNote(selectedId, focusNote);
+            }
             APP->event->setSelectedWidget(NULL);
             e.consume(this);
         }
@@ -305,8 +320,9 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     }
 
     void onDeselect(const DeselectEvent&) override {
-        if (selectedId >= 0 && focusNote >= 0)
+        if (selectedId >= 0 && focusNote >= 0) {
             module->setLearnedNote(selectedId, focusNote);
+        }
         selectedId = -1;
         focusNote = -1;
     }
@@ -320,8 +336,9 @@ struct PadsNoteGridDisplay : OpaqueWidget {
         nvgStroke(args.vg);
 
         std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
-        if (!font)
+        if (!font) {
             return;
+        }
 
         nvgFontFaceId(args.vg, font->handle);
         nvgFontSize(args.vg, 13.f);
@@ -420,8 +437,9 @@ struct PadsWidget : ModuleWidget {
     // addExpander (Venom.hpp), adapted to walk the chain first.
     void addPadXModel(Model* model) {
         Module* last = module;
-        while (last->rightExpander.module && padIsExpanderModel(last->rightExpander.module->model))
+        while (last->rightExpander.module && padIsExpanderModel(last->rightExpander.module->model)) {
             last = last->rightExpander.module;
+        }
         ModuleWidget* lastWidget = (last == module) ? this : APP->scene->rack->getModule(last->id);
 
         Module* newModule = model->createModule();
@@ -451,8 +469,9 @@ struct PadsWidget : ModuleWidget {
         setModule(module);
         addInput(createInput<PJ301MPort>({}, module, Pads::PITCH_INPUT));
         addInput(createInput<PJ301MPort>({}, module, Pads::GATE_INPUT));
-        for (int id = 0; id < 16; id++)
+        for (int id = 0; id < 16; id++) {
             addOutput(createOutput<PJ301MPort>({}, module, Pads::GATE_OUTPUTS + id));
+        }
     }
 };
 #endif

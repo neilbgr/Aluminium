@@ -6,19 +6,22 @@ int aluminiumThemeMode = ALUMINIUM_THEME_FOLLOW_RACK;
 void loadAluminiumThemeMode() {
     std::string path = asset::user("Aluminium.json");
     FILE* f = std::fopen(path.c_str(), "r");
-    if (!f)
+    if (!f) {
         return;
+    }
 
     json_error_t error;
     json_t* rootJ = json_loadf(f, 0, &error);
     std::fclose(f);
-    if (!rootJ)
+    if (!rootJ) {
         return;
+    }
 
     if (json_t* modeJ = json_object_get(rootJ, "themeMode")) {
         int mode = json_integer_value(modeJ);
-        if (mode >= 0 && mode < NUM_ALUMINIUM_THEME_MODES)
+        if (mode >= 0 && mode < NUM_ALUMINIUM_THEME_MODES) {
             aluminiumThemeMode = mode;
+        }
     }
     json_decref(rootJ);
 }

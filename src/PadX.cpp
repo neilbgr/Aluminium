@@ -40,8 +40,9 @@ struct PadX : Module {
     PadX() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
         configInput(LANE_INPUT, "Lane (poly)");
-        for (int id = 0; id < 16; id++)
+        for (int id = 0; id < 16; id++) {
             configOutput(LANE_OUTPUTS + id, string::f("Lane %d", id + 1));
+        }
         // All three lights sit stacked at the same spot on the panel (only
         // one is ever lit at a time), so whichever of the three widgets
         // happens to catch the mouse hover should show the same tooltip —
@@ -67,11 +68,14 @@ struct PadX : Module {
     // `label` changes (construction, patch load, or the on-panel field).
     void updatePortNames() {
         std::string base = label.empty() ? "Lane" : label;
-        if (PortInfo* info = getInputInfo(LANE_INPUT))
+        if (PortInfo* info = getInputInfo(LANE_INPUT)) {
             info->name = base + " (poly)";
-        for (int id = 0; id < 16; id++)
-            if (PortInfo* info = getOutputInfo(LANE_OUTPUTS + id))
+        }
+        for (int id = 0; id < 16; id++) {
+            if (PortInfo* info = getOutputInfo(LANE_OUTPUTS + id)) {
                 info->name = string::f("%s %d", base.c_str(), id + 1);
+            }
+        }
     }
 
     void setLabel(const std::string& newLabel) {
@@ -92,11 +96,14 @@ struct PadX : Module {
         PadXMessage activeChannel;
         bool present = motherAt(leftExpander.module);
 
-        if (present)
+        if (present) {
             activeChannel = *(PadXMessage*) leftExpander.consumerMessage;
-        else
-            for (int id = 0; id < 16; id++)
+        }
+        else {
+            for (int id = 0; id < 16; id++) {
                 activeChannel.activeChannel[id] = -1;
+            }
+        }
 
         // Three mutually exclusive states, checked every block (not just in
         // onExpanderChange, since both lane-connection and channel count
@@ -123,8 +130,9 @@ struct PadX : Module {
             outputs[LANE_OUTPUTS + id].setVoltage(inRange ? inputs[LANE_INPUT].getVoltage(c) : 0.f);
         }
 
-        if (rightExpander.module && padIsExpanderModel(rightExpander.module->model))
+        if (rightExpander.module && padIsExpanderModel(rightExpander.module->model)) {
             padForwardMessage(this, activeChannel);
+        }
     }
 
     json_t* dataToJson() override {
@@ -139,8 +147,9 @@ struct PadX : Module {
             setLabel(json_string_value(j));
             labelDirty = true;
         }
-        if (json_t* j = json_object_get(rootJ, "labelFromCable"))
+        if (json_t* j = json_object_get(rootJ, "labelFromCable")) {
             labelFromCable = json_boolean_value(j);
+        }
     }
 };
 
@@ -177,8 +186,9 @@ struct PadXLabelField : LedDisplayTextField {
         LedDisplayTextField::onChange(e);
         if (module) {
             module->setLabel(getText());
-            if (!syncingFromModule)
+            if (!syncingFromModule) {
                 module->labelFromCable = false;
+            }
         }
     }
 };
@@ -245,8 +255,9 @@ struct PadXWidget : ModuleWidget {
         ModuleWidget::step();
 
         PadX* mod = dynamic_cast<PadX*>(module);
-        if (!mod || !laneInputWidget)
+        if (!mod || !laneInputWidget) {
             return;
+        }
 
         std::vector<CableWidget*> cables = APP->scene->rack->getCompleteCablesOnPort(laneInputWidget);
         bool connected = !cables.empty();
@@ -286,8 +297,9 @@ struct PadXWidget : ModuleWidget {
     PadXWidget(PadX* module) {
         setModule(module);
         addInput(createInput<PJ301MPort>({}, module, PadX::LANE_INPUT));
-        for (int id = 0; id < 16; id++)
+        for (int id = 0; id < 16; id++) {
             addOutput(createOutput<PJ301MPort>({}, module, PadX::LANE_OUTPUTS + id));
+        }
     }
 };
 #endif

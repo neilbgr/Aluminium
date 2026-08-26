@@ -49,15 +49,18 @@ static std::string voltageToNoteName(float voltage) {
 // falls back to plain numeric voltage parsing in that case.
 static bool noteNameToVoltage(const std::string& s, float* voltage) {
     size_t i = 0;
-    while (i < s.size() && std::isspace((unsigned char)s[i]))
+    while (i < s.size() && std::isspace((unsigned char)s[i])) {
         i++;
-    if (i >= s.size())
+    }
+    if (i >= s.size()) {
         return false;
+    }
 
     char letter = std::toupper((unsigned char)s[i]);
     static const int semitoneOfLetter[7] = {9, 11, 0, 2, 4, 5, 7}; // A..G
-    if (letter < 'A' || letter > 'G')
+    if (letter < 'A' || letter > 'G') {
         return false;
+    }
     int semitone = semitoneOfLetter[letter - 'A'];
     i++;
 
@@ -66,20 +69,25 @@ static bool noteNameToVoltage(const std::string& s, float* voltage) {
         i++;
     }
 
-    while (i < s.size() && std::isspace((unsigned char)s[i]))
+    while (i < s.size() && std::isspace((unsigned char)s[i])) {
         i++;
-    if (i >= s.size())
+    }
+    if (i >= s.size()) {
         return false;
+    }
 
     const char* start = s.c_str() + i;
     char* end = nullptr;
     long octave = std::strtol(start, &end, 10);
-    if (end == start)
+    if (end == start) {
         return false;
-    while (*end && std::isspace((unsigned char)*end))
+    }
+    while (*end && std::isspace((unsigned char)*end)) {
         end++;
-    if (*end != '\0')
+    }
+    if (*end != '\0') {
         return false;
+    }
 
     int totalSemi = semitone + (int)(octave - 4) * 12;
     *voltage = totalSemi / 12.f;
@@ -95,10 +103,12 @@ struct SplitParamQuantity : ParamQuantity {
 
     void setDisplayValueString(std::string s) override {
         float v;
-        if (noteNameToVoltage(s, &v))
+        if (noteNameToVoltage(s, &v)) {
             setValue(math::clamp(v, getMinValue(), getMaxValue()));
-        else
+        }
+        else {
             ParamQuantity::setDisplayValueString(s);
+        }
     }
 };
 
@@ -228,21 +238,25 @@ struct Zones : Module {
             case PRIORITY_LOW: {
                 int best = -1;
                 for (int c : zone.held) {
-                    if (learnSuppressed[c])
+                    if (learnSuppressed[c]) {
                         continue;
+                    }
                     bool better = (best < 0)
                         || (zone.priority == PRIORITY_HIGH
                             ? inputs[PITCH_INPUT].getVoltage(c) > inputs[PITCH_INPUT].getVoltage(best)
                             : inputs[PITCH_INPUT].getVoltage(c) < inputs[PITCH_INPUT].getVoltage(best));
-                    if (better)
+                    if (better) {
                         best = c;
+                    }
                 }
                 return best;
             }
             default: // PRIORITY_LAST
-                for (auto it = zone.held.rbegin(); it != zone.held.rend(); ++it)
-                    if (!learnSuppressed[*it])
+                for (auto it = zone.held.rbegin(); it != zone.held.rend(); ++it) {
+                    if (!learnSuppressed[*it]) {
                         return *it;
+                    }
+                }
                 return -1;
         }
     }
@@ -260,15 +274,17 @@ struct Zones : Module {
 
     void release(int c) {
         int z = channelZone[c];
-        if (z >= 0)
+        if (z >= 0) {
             zoneOf(z).remove(c);
+        }
         channelZone[c] = -1;
     }
 
     void process(const ProcessArgs& args) override {
         int channels = inputs[PITCH_INPUT].getChannels();
-        if (channels == 0 && (!zoneA.held.empty() || !zoneB.held.empty()))
+        if (channels == 0 && (!zoneA.held.empty() || !zoneB.held.empty())) {
             resetChannelState();
+        }
         channels = std::min(channels, 16);
 
         float threshold = params[SPLIT_PARAM].getValue();
@@ -395,10 +411,12 @@ struct Zones : Module {
     }
 
     void dataFromJson(json_t* rootJ) override {
-        if (json_t* j = json_object_get(rootJ, "zoneAPriority"))
+        if (json_t* j = json_object_get(rootJ, "zoneAPriority")) {
             zoneA.priority = json_integer_value(j);
-        if (json_t* j = json_object_get(rootJ, "zoneBPriority"))
+        }
+        if (json_t* j = json_object_get(rootJ, "zoneBPriority")) {
             zoneB.priority = json_integer_value(j);
+        }
     }
 };
 
@@ -429,8 +447,9 @@ struct SplitNoteDisplay : TransparentWidget {
         std::string freqStr = string::f(freq >= 1000.f ? "%.0f Hz" : "%.1f Hz", freq);
 
         std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
-        if (!font)
+        if (!font) {
             return;
+        }
 
         nvgFontFaceId(args.vg, font->handle);
         nvgFillColor(args.vg, nvgRGBA(0x40, 0xff, 0x80, 0xee));

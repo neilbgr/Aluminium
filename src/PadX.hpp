@@ -13,7 +13,7 @@ using namespace rack;
 static const int PAD_NUM_CELLS = 16;
 
 struct PadXMessage {
-    int8_t activeChannel[PAD_NUM_CELLS];
+    int8_t activeChannel[PAD_NUM_CELLS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
     // Pads' own current V/OCT+GATE channel count, so an expander can
     // tell whether its own (separately patched) lane cable has a matching
     // channel count.
@@ -34,11 +34,13 @@ inline bool padIsExpanderModel(Model* model) {
 // chained-forward pattern).
 inline void padForwardMessage(Module* self, const PadXMessage& msg) {
     Module* neighbor = self->rightExpander.module;
-    if (!neighbor || !padIsExpanderModel(neighbor->model))
+    if (!neighbor || !padIsExpanderModel(neighbor->model)) {
         return;
+    }
     PadXMessage* out = reinterpret_cast<PadXMessage*>(neighbor->leftExpander.producerMessage);
-    if (!out)
+    if (!out) {
         return;
+    }
     *out = msg;
     neighbor->leftExpander.messageFlipRequested = true;
 }
