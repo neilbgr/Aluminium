@@ -96,8 +96,10 @@ Technically, it's like Cardinal/Rack core's **MIDI-Gate** module, but driven by 
 
 The 2×8 grid in the middle is the whole module: each of its 16 cells shows the note currently learned for that gate output ("--" if unassigned), and is how you (re)assign it — two ways:
 
-- **Learn by playing.** Click a cell — it highlights to show it's armed and waiting — then play the note you want on the incoming V/OCT + GATE cable; the cell captures it and stops waiting. **Ctrl+click** a cell instead of a plain click to arm it for *sequential* learning: after each note is captured, the next cell arms automatically instead of leaving learn mode, so a whole row of pads can be assigned back-to-back just by playing notes in order — it stops arming automatically after the 16th cell.
+- **Learn by playing.** Click a cell — it highlights to show it's armed and waiting — then play the note you want on the incoming V/OCT + GATE cable; the cell captures it and stops waiting.
 - **Type it in.** Click a cell to select it, then type the note directly: a letter key `A`–`G` sets the note name, `#` sharpens it, and a digit key sets the octave; press **Enter** to commit, or **Backspace**/**Delete** at any point to clear the cell back to "--" (that output then stays permanently low).
+
+**Ctrl+click** a cell instead of a plain click to arm it for *sequential* learning — this applies to both methods above: each time a note is captured (played, or typed and confirmed with Enter), the next cell arms automatically and stays selected/armed for more, instead of leaving learn mode. That lets a whole row of pads be assigned back-to-back — from a controller or the computer keyboard — without reclicking between cells; it stops arming automatically after the 16th cell.
 
 Either way, **Esc**, clicking the still-armed cell again, or clicking anywhere else in Rack cancels — the cell keeps whatever note it had before, nothing is committed. Hovering the display shows a tooltip with this same rundown.
 

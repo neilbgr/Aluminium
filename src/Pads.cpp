@@ -268,9 +268,10 @@ struct PadsNoteGridDisplay : OpaqueWidget {
         tooltip = new ui::Tooltip;
         tooltip->text =
             "Click a cell, then play a note to learn it.\n"
-            "Ctrl+click instead to learn a whole row: advances to the next cell after each note.\n"
-            "Or click and type a note name (A-G, #, octave) — Enter to confirm, Esc to cancel.\n"
-            "Click elsewhere to cancel and leave the cell unchanged.";
+            "Ctrl+click instead to learn a whole row: the next cell arms automatically after each note.\n"
+            "Or click and type a note name (A-G, #, octave).\n"
+            "Enter confirms (advances to the next cell if Ctrl-armed) — Esc cancels.\n"
+            "Click elsewhere also cancels, leaving the cell unchanged.";
         APP->scene->addChild(tooltip);
     }
 
@@ -372,6 +373,18 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             }
             if (focusNote >= 0) {
                 module->setLearnedNote(selectedId, focusNote);
+                // Mirrors process()'s own Learn block: a cell armed via
+                // Ctrl+click stays in sequential mode after a typed-and-
+                // confirmed note too, not just a played one — advance to
+                // the next cell and stay selected/armed for more typing.
+                if (module->learnSequential && selectedId < 15) {
+                    int nextId = selectedId + 1;
+                    selectedId = nextId;
+                    focusNote = -1;
+                    module->learningId = nextId;
+                    e.consume(this);
+                    return;
+                }
             }
             APP->event->setSelectedWidget(NULL);
             e.consume(this);
@@ -382,11 +395,8 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             e.consume(this);
         }
         else if (e.key == GLFW_KEY_ESCAPE) {
-            // Cancel: leave the cell's learned note untouched (never called
-            // setLearnedNote above), drop the in-progress typed entry, and
-            // deselect — onDeselect() clears learningId/selectedId for us,
-            // and won't commit anything since focusNote is now -1.
-            focusNote = -1;
+            // Cancel: deselect — onDeselect() discards any in-progress
+            // typed entry and clears learningId/selectedId for us.
             APP->event->setSelectedWidget(NULL);
             e.consume(this);
         }
@@ -396,13 +406,13 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     }
 
     void onDeselect(const DeselectEvent&) override {
-        if (selectedId >= 0 && focusNote >= 0) {
-            module->setLearnedNote(selectedId, focusNote);
-        }
-        // Unconditional: this widget covers all 16 cells, so losing
-        // selection (e.g. clicking elsewhere in Rack) means no cell should
-        // stay armed — including mid-sequence during a Ctrl+click learn
-        // run, where learningId has already moved on from selectedId.
+        // Losing selection always cancels — a typed-in-progress entry is
+        // discarded, not committed (Enter is the only way to commit one;
+        // see onSelectKey). Unconditional on module too: this widget covers
+        // all 16 cells, so losing selection (e.g. clicking elsewhere in
+        // Rack) means no cell should stay armed — including mid-sequence
+        // during a Ctrl+click learn run, where learningId has already moved
+        // on from selectedId.
         if (module) {
             module->learningId = -1;
         }
