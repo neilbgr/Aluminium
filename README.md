@@ -96,8 +96,10 @@ Technically, it's like Cardinal/Rack core's **MIDI-Gate** module, but driven by 
 
 The 2×8 grid in the middle is the whole module: each of its 16 cells shows the note currently learned for that gate output ("--" if unassigned), and is how you (re)assign it — two ways:
 
-- **Learn by playing.** Click a cell — it highlights to show it's armed and waiting — then play the note you want on the incoming V/OCT + GATE cable; the cell captures it and stops waiting. Click the same (still-armed) cell again instead of playing a note to cancel the learn and leave it unchanged.
+- **Learn by playing.** Click a cell — it highlights to show it's armed and waiting — then play the note you want on the incoming V/OCT + GATE cable; the cell captures it and stops waiting. Click the same (still-armed) cell again, or click anywhere else in Rack, to cancel the learn and leave it unchanged. **Ctrl+click** a cell instead of a plain click to arm it for *sequential* learning: after each note is captured, the next cell arms automatically instead of leaving learn mode, so a whole row of pads can be assigned back-to-back just by playing notes in order — it stops arming automatically after the 16th cell.
 - **Type it in.** Click a cell to select it, then type the note directly: a letter key `A`–`G` sets the note name, `#` sharpens it, and a digit key sets the octave; press **Enter** to commit, or **Backspace**/**Delete** at any point to clear the cell back to "--" (that output then stays permanently low). Selecting a different cell or clicking elsewhere without pressing Enter discards whatever was typed so far.
+
+Each cell also shows live gate activity right there, even when nothing is patched into its output: a short line above the note name lights up while that note is currently held on the incoming cable, and a line below lights up while the cell's output is actually high. Normally the two move together; with that cell's Latch on (see below), they can diverge — releasing a latched-on note turns the top line off while the bottom one stays lit, showing the output is still latched high.
 
 Assigning a note to one cell automatically clears it from any other cell that held it — the same note is never mapped to two outputs at once. Fresh from the module browser (or after a reset), the 16 cells default to one chromatic run starting at C2 (cell 1 = C2, cell 2 = C#2, … up through cell 16 = D#3) — a reasonable starting point to re-learn from, not something to rely on.
 
@@ -106,6 +108,16 @@ The left column of ports (outputs 1–8, top to bottom) feeds from the display's
 **Latch buttons**
 
 Each cell also has its own Latch button, one on each outer edge of the panel, aligned with that cell's row. Unlit (the default) is the ordinary behavior described above — gate follows the held note directly. Lit, that cell's gate output *latches* instead: it toggles on or off each time the note is played again, and stays put in between, regardless of how long the note is held or released — useful for a hands-free on/off toggle (mute a channel, open/close a filter, alternate a hi-hat between open and closed) from a single pad hit. Learning a new note into a cell, or clearing it, always resets that cell's Latch button back to off, so a stale toggle from whatever was learned there before never carries over.
+
+**Factory presets**
+
+Right-click → **Preset** → **Factory presets** offers ready-made note mappings, so common setups don't need learning cell by cell:
+
+![Pads factory presets menu](docs/images/Pads_Menu_FactoryPreset.png)
+
+- **From C2 to D4 (White only)**, **From C2 to DSharp3**, **From CSharp2 to CSharp5 (Black only)** — generic note-range starting points (full chromatic run, or white/black keys only) for reserving a block of ordinary keyboard keys as pads (see Patch ideas below), instead of dialing in each cell by hand.
+- **Novation_LaunchKey**, **SwissSonic_ControlKey88** — the stock pad mapping for those specific keyboard/pad controllers, straight from their own documentation.
+- **Unmapped** — all 16 cells cleared to "--", a clean slate.
 
 **Inputs**
 - **V/OCT**, **Gate** — the polyphonic pitch/gate pair to learn notes from and gate against (from Core MIDI-CV, or a Zones output).
