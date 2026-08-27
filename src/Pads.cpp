@@ -585,12 +585,28 @@ struct PadsWidget : ModuleWidget {
         APP->history->push(h);
     }
 
+    // Clears (learnedNotes[id] = -1) every cell whose GATE_OUTPUTS jack has
+    // no cable plugged in — a quick way to drop cells that were only ever
+    // placeholders (e.g. a factory preset's unused rows) without hand-
+    // clearing each one via Backspace.
+    void clearUnpatchedCells() {
+        Pads* pads = static_cast<Pads*>(module);
+        for (int id = 0; id < 16; id++) {
+            PortWidget* port = getOutput(Pads::GATE_OUTPUTS + id);
+            if (port && APP->scene->rack->getCablesOnPort(port).empty()) {
+                pads->setLearnedNote(id, -1);
+            }
+        }
+    }
+
     void appendContextMenu(Menu* menu) override {
         appendAluminiumThemeMenu(menu);
 
         menu->addChild(new MenuSeparator);
         menu->addChild(createMenuItem("Add an expander", "",
             [this]() { addPadXModel(modelPadX); }));
+        menu->addChild(createMenuItem("Clear unpatched cells", "",
+            [this]() { clearUnpatchedCells(); }));
     }
 };
 #else
