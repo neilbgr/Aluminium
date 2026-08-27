@@ -101,6 +101,10 @@ The 2×8 grid in the middle is the whole module: each of its 16 cells shows the 
 
 **Ctrl+click** a cell instead of a plain click to arm it for *sequential* learning — this applies to both methods above: each time a note is captured (played, or typed and confirmed with Enter), the next cell arms automatically and stays selected/armed for more, instead of leaving learn mode. That lets a whole row of pads be assigned back-to-back — from a controller or the computer keyboard — without reclicking between cells; it stops arming automatically after the 16th cell.
 
+[Alumium - Pads mapping.webm](https://github.com/user-attachments/assets/213abf6e-4478-4d57-9d75-99730058bb90)
+
+*Ctrl+click the first cell, then press all 16 pads in order on a MIDI controller — the whole row maps itself, one pad per press.*
+
 Either way, **Esc**, clicking the still-armed cell again, or clicking anywhere else in Rack cancels — the cell keeps whatever note it had before, nothing is committed. Hovering the display shows a tooltip with this same rundown.
 
 Each cell also shows live gate activity right there, even when nothing is patched into its output: a short line above the note name lights up while that note is currently held on the incoming cable, and a line below lights up while the cell's output is actually high. Normally the two move together; with that cell's Latch on (see below), they can diverge — releasing a latched-on note turns the top line off while the bottom one stays lit, showing the output is still latched high.
