@@ -67,6 +67,12 @@ struct Pads : Module {
     // input gate state for the Learn feature, a different concept).
     bool latchedState[16] = {};
     bool prevMatched[16] = {};
+    // Transient display state, not serialized — mirrored every tick from
+    // process()'s own `matched`/`gateHigh` locals so PadsNoteGridDisplay can
+    // show source-vs-output activity even when nothing is patched into the
+    // corresponding GATE_OUTPUTS jack.
+    bool sourceGateActive[16] = {};
+    bool outputGateActive[16] = {};
 
     PadXMessage expMsg = {};
 
@@ -87,6 +93,8 @@ struct Pads : Module {
             learnedNotes[id] = 36 + id;
             latchedState[id] = false;
             prevMatched[id] = false;
+            sourceGateActive[id] = false;
+            outputGateActive[id] = false;
         }
         learningId = -1;
         for (int c = 0; c < 16; c++) {
@@ -114,6 +122,8 @@ struct Pads : Module {
         // state from whatever was learned before bleed into the new note.
         latchedState[id] = false;
         prevMatched[id] = false;
+        sourceGateActive[id] = false;
+        outputGateActive[id] = false;
     }
 
     void process(const ProcessArgs&) override {
@@ -156,6 +166,8 @@ struct Pads : Module {
             outputs[GATE_OUTPUTS + id].setVoltage(gateHigh ? 10.f : 0.f);
             lights[LATCH_LIGHTS + id].setBrightness(latchOn ? 1.f : 0.f);
             expMsg.activeChannel[id] = (int8_t) matchedChannel;
+            sourceGateActive[id] = matched;
+            outputGateActive[id] = gateHigh;
         }
 
         // Learn: on any channel's gate rising edge, if a cell is armed, assign it that note.
@@ -365,8 +377,37 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             int8_t note = module ? module->learnedNotes[id] : (int8_t) (36 + id);
             std::string label = (selected && focusNote >= 0) ? padNoteName(focusNote) : padNoteName(note);
 
-            nvgFillColor(args.vg, (armed || selected) ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee));
+            NVGcolor noteColor = (armed || selected) ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee);
+            nvgFillColor(args.vg, noteColor);
             nvgText(args.vg, cx, cy, label.c_str(), NULL);
+
+            // Two independent activity traits around the note name: top
+            // reflects the source gate (`matched`, i.e. the note is
+            // currently held on the incoming poly cable), bottom reflects
+            // the actual output gate (`gateHigh`, post-Latch) — they only
+            // diverge while a cell's Latch is on and the source note has
+            // been released but the output is still toggled high.
+            bool sourceActive = module && module->sourceGateActive[id];
+            bool outputActive = module && module->outputGateActive[id];
+            if (sourceActive || outputActive) {
+                float lineHalfW = cellW / 2.f - 4.f;
+                nvgStrokeColor(args.vg, noteColor);
+                nvgStrokeWidth(args.vg, 1.f);
+                if (sourceActive) {
+                    float lineY = cy - 9.f;
+                    nvgBeginPath(args.vg);
+                    nvgMoveTo(args.vg, cx - lineHalfW, lineY);
+                    nvgLineTo(args.vg, cx + lineHalfW, lineY);
+                    nvgStroke(args.vg);
+                }
+                if (outputActive) {
+                    float lineY = cy + 9.f;
+                    nvgBeginPath(args.vg);
+                    nvgMoveTo(args.vg, cx - lineHalfW, lineY);
+                    nvgLineTo(args.vg, cx + lineHalfW, lineY);
+                    nvgStroke(args.vg);
+                }
+            }
         }
     }
 };
