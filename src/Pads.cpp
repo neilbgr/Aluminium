@@ -252,9 +252,43 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     Pads* module;
     int selectedId = -1;
     int8_t focusNote = -1;
+    ui::Tooltip* tooltip = nullptr;
 
     PadsNoteGridDisplay(Pads* module, Vec size) : module(module) {
         box.size = size;
+    }
+
+    // Static text (no per-frame Quantity to read, unlike ParamWidget's own
+    // ParamTooltip), so a plain ui::Tooltip is enough — same createTooltip/
+    // destroyTooltip + onEnter/onLeave recipe as ParamWidget.cpp.
+    void createTooltip() {
+        if (!settings::tooltips || tooltip) {
+            return;
+        }
+        tooltip = new ui::Tooltip;
+        tooltip->text =
+            "Click a cell, then play a note to learn it.\n"
+            "Ctrl+click instead to learn a whole row: advances to the next cell after each note.\n"
+            "Or click and type a note name (A-G, #, octave) — Enter to confirm, Esc to cancel.\n"
+            "Click elsewhere to cancel and leave the cell unchanged.";
+        APP->scene->addChild(tooltip);
+    }
+
+    void destroyTooltip() {
+        if (!tooltip) {
+            return;
+        }
+        APP->scene->removeChild(tooltip);
+        delete tooltip;
+        tooltip = nullptr;
+    }
+
+    void onEnter(const EnterEvent& e) override {
+        createTooltip();
+    }
+
+    void onLeave(const LeaveEvent& e) override {
+        destroyTooltip();
     }
 
     int idFromPos(Vec pos) {
@@ -345,6 +379,15 @@ struct PadsNoteGridDisplay : OpaqueWidget {
         else if (e.key == GLFW_KEY_BACKSPACE || e.key == GLFW_KEY_DELETE) {
             module->setLearnedNote(selectedId, -1);
             focusNote = -1;
+            e.consume(this);
+        }
+        else if (e.key == GLFW_KEY_ESCAPE) {
+            // Cancel: leave the cell's learned note untouched (never called
+            // setLearnedNote above), drop the in-progress typed entry, and
+            // deselect — onDeselect() clears learningId/selectedId for us,
+            // and won't commit anything since focusNote is now -1.
+            focusNote = -1;
+            APP->event->setSelectedWidget(NULL);
             e.consume(this);
         }
         else {
