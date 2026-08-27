@@ -60,6 +60,10 @@ struct Pads : Module {
     int8_t learnedNotes[16];
     // -1 = not learning; id of the cell awaiting its next played/typed note otherwise.
     int learningId = -1;
+    // Ctrl+click-armed learn sessions advance learningId to the next cell
+    // after each learned note instead of leaving learn mode — set per-arm in
+    // PadsNoteGridDisplay::onButton(), consumed in process()'s Learn block.
+    bool learnSequential = false;
     bool prevGateHigh[16] = {};
     // Per-cell toggled gate value while that cell is in Latch mode (see
     // LATCH_PARAMS) — flips on each rising edge of the cell's own `matched`
@@ -97,6 +101,7 @@ struct Pads : Module {
             outputGateActive[id] = false;
         }
         learningId = -1;
+        learnSequential = false;
         for (int c = 0; c < 16; c++) {
             prevGateHigh[c] = false;
         }
@@ -175,7 +180,12 @@ struct Pads : Module {
             bool gateHigh = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
             if (gateHigh && !prevGateHigh[c] && learningId >= 0) {
                 setLearnedNote(learningId, (int8_t) noteOf(inputs[PITCH_INPUT].getVoltage(c)));
-                learningId = -1;
+                if (learnSequential && learningId < 15) {
+                    learningId += 1;
+                }
+                else {
+                    learningId = -1;
+                }
             }
             prevGateHigh[c] = gateHigh;
         }
@@ -263,13 +273,24 @@ struct PadsNoteGridDisplay : OpaqueWidget {
 
         int id = idFromPos(e.pos);
         if (module->learningId == id) {
-            // Click the already-armed cell again to cancel learn.
+            // Click the already-armed cell again to cancel learn. Also drop
+            // selectedId/focusNote — this widget stays Rack's selected
+            // widget (no onDeselect fires here), so leaving them stale would
+            // let a stray keypress right after this click silently commit a
+            // note onto the now-cancelled cell.
             module->learningId = -1;
+            if (selectedId == id) {
+                selectedId = -1;
+                focusNote = -1;
+            }
         }
         else {
             selectedId = id;
             focusNote = -1;
             module->learningId = id;
+            // Ctrl+click arms sequential learn: advance to the next cell
+            // after each learned note instead of leaving learn mode.
+            module->learnSequential = (e.mods & RACK_MOD_MASK) == RACK_MOD_CTRL;
             APP->event->setSelectedWidget(this);
         }
         e.consume(this);
@@ -335,6 +356,13 @@ struct PadsNoteGridDisplay : OpaqueWidget {
         if (selectedId >= 0 && focusNote >= 0) {
             module->setLearnedNote(selectedId, focusNote);
         }
+        // Unconditional: this widget covers all 16 cells, so losing
+        // selection (e.g. clicking elsewhere in Rack) means no cell should
+        // stay armed — including mid-sequence during a Ctrl+click learn
+        // run, where learningId has already moved on from selectedId.
+        if (module) {
+            module->learningId = -1;
+        }
         selectedId = -1;
         focusNote = -1;
     }
@@ -365,9 +393,17 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             float cx = cellW * col + cellW / 2.f;
             float cy = cellH * row + cellH / 2.f;
 
+            // `armed` (module->learningId) alone drives the highlight — it's
+            // the single source of truth for "this cell is being learned".
+            // `selected` only tracks keyboard focus for typed note entry
+            // below; the two are kept in sync everywhere they're set, so
+            // this never needs to fall back to `selected` for the highlight
+            // (doing so previously let a stale selectedId show a second
+            // cell as if still armed, e.g. after a cancel-click or after
+            // sequential learn advanced learningId elsewhere).
             bool armed = module && (id == module->learningId);
             bool selected = (id == selectedId);
-            if (armed || selected) {
+            if (armed) {
                 nvgBeginPath(args.vg);
                 nvgRoundedRect(args.vg, cellW * col + 1.f, cellH * row + 1.f, cellW - 2.f, cellH - 2.f, 1.f);
                 nvgFillColor(args.vg, nvgRGBA(0x40, 0x40, 0x10, 0xff));
@@ -377,7 +413,7 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             int8_t note = module ? module->learnedNotes[id] : (int8_t) (36 + id);
             std::string label = (selected && focusNote >= 0) ? padNoteName(focusNote) : padNoteName(note);
 
-            NVGcolor noteColor = (armed || selected) ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee);
+            NVGcolor noteColor = armed ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee);
             nvgFillColor(args.vg, noteColor);
             nvgText(args.vg, cx, cy, label.c_str(), NULL);
 
