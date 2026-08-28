@@ -599,6 +599,17 @@ struct PadsWidget : ModuleWidget {
         }
     }
 
+    // Flips every cell's LATCH_PARAMS switch (Normal <-> Latch), letting a
+    // whole layout be swapped in one click instead of clicking all 16
+    // Latch buttons by hand.
+    void invertLatches() {
+        Pads* pads = static_cast<Pads*>(module);
+        for (int id = 0; id < 16; id++) {
+            bool latchOn = pads->params[Pads::LATCH_PARAMS + id].getValue() > 0.5f;
+            pads->params[Pads::LATCH_PARAMS + id].setValue(latchOn ? 0.f : 1.f);
+        }
+    }
+
     void appendContextMenu(Menu* menu) override {
         appendAluminiumThemeMenu(menu);
 
@@ -607,6 +618,8 @@ struct PadsWidget : ModuleWidget {
             [this]() { addPadXModel(modelPadX); }));
         menu->addChild(createMenuItem("Clear unpatched cells", "",
             [this]() { clearUnpatchedCells(); }));
+        menu->addChild(createMenuItem("Invert latches", "",
+            [this]() { invertLatches(); }));
     }
 };
 #else

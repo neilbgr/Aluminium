@@ -142,6 +142,7 @@ Right-click → **Preset** → **Factory presets** offers ready-made note mappin
 
 - **Add an expander** — creates a PadX immediately to the right of Pads, or to the right of the last expander already chained there if one or more are already attached. Add as many as you need, one per poly lane, in any order — give each one its own name via its on-panel label field, see [PadX](#padx) below for how the chain works.
 - **Clear unpatched cells** — sets every cell back to "--" whose Gate output has no cable plugged in, in one step. Leaves patched cells alone, so it's a quick way to drop leftover cells from a factory preset or an earlier setup that this patch never actually uses, without hand-clearing each one (click, Backspace).
+- **Invert latches** — flips every cell's Latch button in one step: cells that were in Latch mode go back to Normal, and vice versa. A quick way to swap an entire layout's momentary/toggle behavior without clicking all 16 Latch buttons by hand.
 
 **Patch ideas**
 - Patch a MIDI pad controller's Core MIDI-CV output into Pads, learn each pad once, then add a [PadX](#padx) per lane you want — one labeled "Velocity", one labeled "Aftertouch" — so gate triggers a drum module, velocity sets its level, and aftertouch modulates a filter, all live and independently per pad.
