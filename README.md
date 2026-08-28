@@ -99,11 +99,11 @@ The 2×8 grid in the middle is the whole module: each of its 16 cells shows the 
 - **Learn by playing.** Click a cell — it highlights to show it's armed and waiting — then play the note you want on the incoming V/OCT + GATE cable; the cell captures it and stops waiting.
 - **Type it in.** Click a cell to select it, then type the note directly: a letter key `A`–`G` sets the note name, `#` sharpens it, and a digit key sets the octave; press **Enter** to commit, or **Backspace**/**Delete** at any point to clear the cell back to "--" (that output then stays permanently low).
 
-**Ctrl+click** a cell instead of a plain click to arm it for *sequential* learning — this applies to both methods above: each time a note is captured (played, or typed and confirmed with Enter), the next cell arms automatically and stays selected/armed for more, instead of leaving learn mode. That lets a whole row of pads be assigned back-to-back — from a controller or the computer keyboard — without reclicking between cells; it stops arming automatically after the 16th cell.
+**Ctrl+click** (**Cmd+click** on Mac) a cell instead of a plain click to arm it for *sequential* learning — this applies to both methods above: each time a note is captured (played, or typed and confirmed with Enter), the next cell arms automatically and stays selected/armed for more, instead of leaving learn mode. That lets a whole row of pads be assigned back-to-back — from a controller or the computer keyboard — without reclicking between cells; it stops arming automatically after the 16th cell. An armed cell highlights yellow for a plain-click (single-cell) learn, orange for a Ctrl/Cmd-click (sequential) one, so it's obvious at a glance which mode is running.
 
 [Alumium - Pads mapping.webm](https://github.com/user-attachments/assets/213abf6e-4478-4d57-9d75-99730058bb90)
 
-*Ctrl+click the first cell, then press all 16 pads in order on a MIDI controller — the whole row maps itself, one pad per press.*
+*Ctrl+click (Cmd+click on Mac) the first cell, then press all 16 pads in order on a MIDI controller — the whole row maps itself, one pad per press.*
 
 Either way, **Esc**, clicking the still-armed cell again, or clicking anywhere else in Rack cancels — the cell keeps whatever note it had before, nothing is committed. Hovering the display shows a tooltip with this same rundown.
 

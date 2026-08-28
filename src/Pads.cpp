@@ -266,12 +266,13 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             return;
         }
         tooltip = new ui::Tooltip;
-        tooltip->text =
+        tooltip->text = string::f(
             "Click a cell, then play a note to learn it.\n"
-            "Ctrl+click instead to learn a whole row: the next cell arms automatically after each note.\n"
+            "%s+click instead to learn a whole row: the next cell arms automatically after each note.\n"
             "Or click and type a note name (A-G, #, octave).\n"
-            "Enter confirms (advances to the next cell if Ctrl-armed) — Esc cancels.\n"
-            "Click elsewhere also cancels, leaving the cell unchanged.";
+            "Enter confirms (advances to the next cell if %s-armed) — Esc cancels.\n"
+            "Click elsewhere also cancels, leaving the cell unchanged.",
+            RACK_MOD_CTRL_NAME, RACK_MOD_CTRL_NAME);
         APP->scene->addChild(tooltip);
     }
 
@@ -455,18 +456,22 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             // cell as if still armed, e.g. after a cancel-click or after
             // sequential learn advanced learningId elsewhere).
             bool armed = module && (id == module->learningId);
+            // Sequential (Ctrl/Cmd-armed) learn gets its own color so a whole-
+            // row learn run is visually distinct from a plain single-cell one.
+            bool sequential = armed && module->learnSequential;
             bool selected = (id == selectedId);
             if (armed) {
                 nvgBeginPath(args.vg);
                 nvgRoundedRect(args.vg, cellW * col + 1.f, cellH * row + 1.f, cellW - 2.f, cellH - 2.f, 1.f);
-                nvgFillColor(args.vg, nvgRGBA(0x40, 0x40, 0x10, 0xff));
+                nvgFillColor(args.vg, sequential ? nvgRGBA(0x40, 0x28, 0x10, 0xff) : nvgRGBA(0x40, 0x40, 0x10, 0xff));
                 nvgFill(args.vg);
             }
 
             int8_t note = module ? module->learnedNotes[id] : (int8_t) (36 + id);
             std::string label = (selected && focusNote >= 0) ? padNoteName(focusNote) : padNoteName(note);
 
-            NVGcolor noteColor = armed ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee);
+            NVGcolor noteColor = sequential ? nvgRGBA(0xff, 0xa0, 0x40, 0xee)
+                : armed ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee);
             nvgFillColor(args.vg, noteColor);
             nvgText(args.vg, cx, cy, label.c_str(), NULL);
 
