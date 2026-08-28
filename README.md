@@ -101,7 +101,7 @@ The 2×8 grid in the middle is the whole module: each of its 16 cells shows the 
 
 **Ctrl+click** (**Cmd+click** on Mac) a cell instead of a plain click to arm it for *sequential* learning — this applies to both methods above: each time a note is captured (played, or typed and confirmed with Enter), the next cell arms automatically and stays selected/armed for more, instead of leaving learn mode. That lets a whole row of pads be assigned back-to-back — from a controller or the computer keyboard — without reclicking between cells; it stops arming automatically after the 16th cell. An armed cell highlights yellow for a plain-click (single-cell) learn, orange for a Ctrl/Cmd-click (sequential) one, so it's obvious at a glance which mode is running.
 
-[Alumium - Pads mapping.webm](https://github.com/user-attachments/assets/213abf6e-4478-4d57-9d75-99730058bb90)
+[Alumium - Pads mapping.webm](https://github.com/user-attachments/assets/98e7ff65-a827-4052-86d5-d7b034b6fa1c)
 
 *Ctrl+click (Cmd+click on Mac) the first cell, then press all 16 pads in order on a MIDI controller — the whole row maps itself, one pad per press.*
 
