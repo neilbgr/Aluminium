@@ -253,8 +253,16 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     int selectedId = -1;
     int8_t focusNote = -1;
     ui::Tooltip* tooltip = nullptr;
+    // Owned by the enclosing PadsWidget, set true for the duration of a
+    // single left-click's event dispatch whenever that click's position
+    // falls anywhere inside the module's own panel bounds (see PadsWidget::
+    // onButton). Read (and cleared) in onDeselect() below to decide whether
+    // a click that steals selection away from this widget should commit the
+    // in-progress typed note or discard it.
+    bool* clickInsidePanel = nullptr;
 
-    PadsNoteGridDisplay(Pads* module, Vec size) : module(module) {
+    PadsNoteGridDisplay(Pads* module, Vec size, bool* clickInsidePanel)
+        : module(module), clickInsidePanel(clickInsidePanel) {
         box.size = size;
     }
 
@@ -271,7 +279,7 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             "%s+click instead to learn a whole row: the next cell arms automatically after each note.\n"
             "Or click and type a note name (A-G, #, octave).\n"
             "Enter confirms (advances to the next cell if %s-armed) — Esc cancels.\n"
-            "Click elsewhere also cancels, leaving the cell unchanged.",
+            "Clicking elsewhere on the panel confirms a typed note too; clicking outside the panel cancels.",
             RACK_MOD_CTRL_NAME, RACK_MOD_CTRL_NAME);
         APP->scene->addChild(tooltip);
     }
@@ -302,6 +310,15 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     }
 
     void onButton(const ButtonEvent& e) override {
+        // Any click landing on this widget is handled entirely below (arm,
+        // cancel, or switch cells) rather than through onDeselect's commit-
+        // on-click-inside-panel logic — clear the flag so it can't linger
+        // true and cause a later, unrelated deselect (e.g. Escape) to
+        // misfire as a commit.
+        if (clickInsidePanel) {
+            *clickInsidePanel = false;
+        }
+
         if (module == nullptr || e.button != GLFW_MOUSE_BUTTON_LEFT || e.action != GLFW_PRESS) {
             OpaqueWidget::onButton(e);
             return;
@@ -407,15 +424,23 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     }
 
     void onDeselect(const DeselectEvent&) override {
-        // Losing selection always cancels — a typed-in-progress entry is
-        // discarded, not committed (Enter is the only way to commit one;
-        // see onSelectKey). Unconditional on module too: this widget covers
-        // all 16 cells, so losing selection (e.g. clicking elsewhere in
-        // Rack) means no cell should stay armed — including mid-sequence
-        // during a Ctrl+click learn run, where learningId has already moved
-        // on from selectedId.
+        // Losing selection because the user clicked somewhere else on this
+        // module's own panel (another port/button, or blank panel space)
+        // commits whatever note was typed so far, same as pressing Enter —
+        // clicking outside the panel entirely (another module, empty rack
+        // space) still discards it, and so does Escape (see onSelectKey).
+        // Unconditional on module too: this widget covers all 16 cells, so
+        // losing selection means no cell should stay armed — including
+        // mid-sequence during a Ctrl+click learn run, where learningId has
+        // already moved on from selectedId.
         if (module) {
+            if (clickInsidePanel && *clickInsidePanel && focusNote >= 0) {
+                module->setLearnedNote(selectedId, focusNote);
+            }
             module->learningId = -1;
+        }
+        if (clickInsidePanel) {
+            *clickInsidePanel = false;
         }
         selectedId = -1;
         focusNote = -1;
@@ -519,6 +544,20 @@ struct SmallLightLatch : LightButton<TL1105, TLight> {
 };
 
 struct PadsWidget : ModuleWidget {
+    // True for the duration of a single left-click's event dispatch when
+    // that click's position is anywhere inside this module's own box (see
+    // onButton below) — read by PadsNoteGridDisplay::onDeselect() to decide
+    // whether losing selection to that click should commit or discard an
+    // in-progress typed note.
+    bool clickInsidePanel = false;
+
+    void onButton(const ButtonEvent& e) override {
+        if (e.button == GLFW_MOUSE_BUTTON_LEFT && e.action == GLFW_PRESS) {
+            clickInsidePanel = true;
+        }
+        ModuleWidget::onButton(e);
+    }
+
     PadsWidget(Pads* module) {
         setModule(module);
         const float panelWidth = 60.96f;
@@ -549,7 +588,7 @@ struct PadsWidget : ModuleWidget {
 
         Vec displaySize = mm2px(Vec(18.f, outputsZoneHeight));
         Vec displayPos = mm2px(Vec(displayCenterX, outputsZoneOffsetY + outputsZoneHeight / 2.f)).minus(displaySize.div(2));
-        PadsNoteGridDisplay* display = new PadsNoteGridDisplay(module, displaySize);
+        PadsNoteGridDisplay* display = new PadsNoteGridDisplay(module, displaySize, &clickInsidePanel);
         display->box.pos = displayPos;
         addChild(display);
 

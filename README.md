@@ -43,7 +43,7 @@ Right-click any Aluminium module to open its context menu. One entry is identica
 
 ![Aluminium theme submenu](docs/images/Menu_Theme.png)
 
-Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds one more (documented under [Pads](#pads)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
+Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
 
 ## Shared conventions
 
@@ -105,7 +105,7 @@ The 2×8 grid in the middle is the whole module: each of its 16 cells shows the 
 
 *Ctrl+click (Cmd+click on Mac) the first cell, then press all 16 pads in order on a MIDI controller — the whole row maps itself, one pad per press.*
 
-Either way, **Esc**, clicking the still-armed cell again, or clicking anywhere else in Rack cancels — the cell keeps whatever note it had before, nothing is committed. Hovering the display shows a tooltip with this same rundown.
+**Esc**, or clicking the still-armed cell again, always cancels — the cell keeps whatever note it had before, nothing is committed. Clicking elsewhere instead depends on where: clicking anywhere else on the Pads panel itself (another port, a Latch button, blank panel space) commits a note typed in but not yet confirmed with Enter, same as pressing Enter would; clicking outside the panel entirely (another module, empty rack space) cancels, same as Esc. Hovering the display shows a tooltip with this same rundown.
 
 Each cell also shows live gate activity right there, even when nothing is patched into its output: a short line above the note name lights up while that note is currently held on the incoming cable, and a line below lights up while the cell's output is actually high. Normally the two move together; with that cell's Latch on (see below), they can diverge — releasing a latched-on note turns the top line off while the bottom one stays lit, showing the output is still latched high.
 
@@ -169,8 +169,8 @@ Place it directly to the right of Pads — or to the right of another PadX alrea
 - **Lane 1–16** — that note's current value on the patched-in lane (0V while its cell is unassigned, its note isn't currently held, or the input's channel count doesn't reach that cell's channel — see Lights below).
 
 **Lights** — one status LED, showing one of three colors at a time (hover it for a tooltip covering all three):
-- **Yellow** — chained to Pads (directly or through other expanders), but nothing patched into this instance's own input yet.
 - **Red** — chained and patched in, but this instance's own cable has a different channel count than Pads' V/OCT + Gate cable; outputs for cells beyond its channel count read 0V instead of whatever note Pads has learned there.
+- **Yellow** — chained to Pads (directly or through other expanders), but nothing patched into this instance's own input yet.
 - **Green** — chained, patched in, and channel counts match: fully working.
 
 **Patch ideas** — see [Pads](#pads) above.
