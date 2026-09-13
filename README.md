@@ -19,9 +19,9 @@
 - [Right-click menu](#right-click-menu)
 - [Shared conventions](#shared-conventions)
 - [Zones](#zones)
+  - [Example patch: split bass/chord synth](#example-patch-split-basschord-synth)
 - [Pads](#pads)
 - [PadX](#padx)
-- [Example patch: split bass/chord synth](#example-patch-split-basschord-synth)
 
 ## Panel themes
 
@@ -83,6 +83,16 @@ Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below
 - The one-keyboard, one-MIDI-channel setup this module exists for: patch Core MIDI-CV straight into one Zones module to get a simple upper/lower keyboard split, or chain two or three together to build several independent zones — bass on the lowest, chords in the middle, lead on top — all from a single physical keyboard.
 - Set a zone to Monophonic with *Highest note* priority for a simple top-note lead line while still holding chords underneath in the other (Polyphonic) zone.
 - Set the bass zone to Monophonic with *Last note* priority and play it legato (overlapping key presses) for true monosynth-style basslines, gate and envelope behaving exactly like a real analog mono synth would expect.
+
+### Example patch: split bass/chord synth
+
+[`docs/Zones.vcv`](docs/Zones.vcv) is a self-contained (Fundamental + Core only, no AmbientModules needed) patch showing Zones driving two fully independent voices from a single keyboard, split at **F3**:
+
+- **Zone A** (below F3, set to **Monophonic**/Last note) plays a legato bass line: its own V/OCT and Gate/Retrigger drive a dedicated VCO pair → Mixer → VCF (cutoff modulated by its own ADSR) → VCMixer.
+- **Zone B** (at/above F3, left **Polyphonic**) plays chords on its own independent VCO pair → Mixer → VCF/ADSR chain, with its Velocity output additionally scaling a VCA-1's level (through an Octave module used as a simple CV attenuator) for real velocity-sensitive dynamics on the chord — while the bass keeps playing underneath, unaffected.
+- Both voices are summed in a VCMixer before Core's AudioInterface2.
+
+![Split bass/chord synth patch](docs/images/Patch-Zones.png)
 
 ## Pads
 
@@ -174,13 +184,3 @@ Place it directly to the right of Pads — or to the right of another PadX alrea
 - **Green** — chained, patched in, and channel counts match: fully working.
 
 **Patch ideas** — see [Pads](#pads) above.
-
-## Example patch: split bass/chord synth
-
-[`docs/Zones.vcv`](docs/Zones.vcv) is a self-contained (Fundamental + Core only, no AmbientModules needed) patch showing Zones driving two fully independent voices from a single keyboard, split at **F3**:
-
-- **Zone A** (below F3, set to **Monophonic**/Last note) plays a legato bass line: its own V/OCT and Gate/Retrigger drive a dedicated VCO pair → Mixer → VCF (cutoff modulated by its own ADSR) → VCMixer.
-- **Zone B** (at/above F3, left **Polyphonic**) plays chords on its own independent VCO pair → Mixer → VCF/ADSR chain, with its Velocity output additionally scaling a VCA-1's level (through an Octave module used as a simple CV attenuator) for real velocity-sensitive dynamics on the chord — while the bass keeps playing underneath, unaffected.
-- Both voices are summed in a VCMixer before Core's AudioInterface2.
-
-![Split bass/chord synth patch](docs/images/Patch-Zones.png)
