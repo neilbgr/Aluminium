@@ -10,9 +10,16 @@
 // outputs of Rack's core MIDI-CV module) into two note-range zones (A = below
 // split point, B = at/above). Each zone independently outputs either:
 //  - POLY: passthrough of the input channels belonging to that zone (same
-//    channel indices as the input, GATE/RTRG masked off for channels that
-//    don't belong), so no channel is ever reassigned and downstream poly
-//    modules never see a spurious retrigger; or
+//    channel indices as the input, so no channel is ever reassigned). GATE
+//    and RTRG drop to 0 immediately for a channel that doesn't currently
+//    belong; PITCH/VEL/AFT instead hold at that channel's *last* real value
+//    from when it did belong, rather than mirroring the live input (which,
+//    once the channel gets reused, is some other note entirely — see the
+//    Zone::lastPitch/lastVel/lastAft comment) or snapping to 0 (which would
+//    audibly retune a still-releasing envelope's tail downstream, since
+//    GATE falling doesn't mean the note has actually gone silent yet). A
+//    channel that has never belonged to a zone reads silent (0V) there,
+//    same as if it had been zeroed; or
 //  - MONO: a single-channel reduction with a configurable note-priority rule
 //    (last/highest/lowest). GATE stays high across overlapping held notes in
 //    the zone (true legato — matches the non-retrigger GATE behavior of the
@@ -24,11 +31,18 @@
 // Classification of an input channel into a zone happens once, on that
 // channel's RTRG rising edge (a real note-on, per the core module's own
 // semantics — including same-channel "Reuse" retriggers that never drop
-// GATE), and is held fixed until that channel's GATE falls (note-off). Pitch
-// bend/mod wheel are channel-wide MIDI messages, not per-note, so they're
-// intentionally out of scope here — patch them directly from the MIDI-CV
-// module to wherever they're needed. Portamento/glide is also out of scope —
-// patch a Slew module after this one's MONO outputs if glide is wanted.
+// GATE), and is held fixed until that channel's GATE falls (note-off), OR
+// until that channel's own pitch drifts across the split point while GATE
+// stays high with no RTRG edge (see the fallback in process() below) — the
+// case a genuinely monophonic CV/Gate source (no separate retrigger line at
+// all, e.g. a real analog mono keyboard) hits on legato overlap: channel 0's
+// pitch changes to the new note but GATE never drops, so without this
+// fallback the old zone would keep reporting the new note's pitch forever
+// instead of handing it to the zone it now belongs in. Pitch bend/mod wheel
+// are channel-wide MIDI messages, not per-note, so they're intentionally out
+// of scope here — patch them directly from the MIDI-CV module to wherever
+// they're needed. Portamento/glide is also out of scope — patch a Slew
+// module after this one's MONO outputs if glide is wanted.
 
 static const char* NOTE_NAMES[12] = {
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
@@ -166,6 +180,15 @@ struct Zones : Module {
         // currently held and classified into this zone, oldest first.
         std::vector<int> held;
         dsp::PulseGenerator retrigPulse;
+        // POLY mode only: each channel's last PITCH/VEL/AFT while it belonged
+        // to *this* zone, held onto once it stops belonging (GATE/RTRIG still
+        // drop to 0 right away) instead of snapping to 0 or drifting to
+        // whatever the now-reassigned live input channel shows — see
+        // processZone(). Zero-initialized, so a channel that has never
+        // belonged to this zone reads silent (0V) until it actually does.
+        float lastPitch[16] = {};
+        float lastVel[16] = {};
+        float lastAft[16] = {};
 
         void remove(int c) {
             held.erase(std::remove(held.begin(), held.end(), c), held.end());
@@ -219,6 +242,10 @@ struct Zones : Module {
         }
         zoneA.held.clear();
         zoneB.held.clear();
+        for (int c = 0; c < 16; c++) {
+            zoneA.lastPitch[c] = zoneA.lastVel[c] = zoneA.lastAft[c] = 0.f;
+            zoneB.lastPitch[c] = zoneB.lastVel[c] = zoneB.lastAft[c] = 0.f;
+        }
     }
 
     void onReset() override {
@@ -329,6 +356,22 @@ struct Zones : Module {
                     z.retrigPulse.trigger(1e-3f);
                 }
             }
+            else if (gateHigh && channelZone[c] >= 0) {
+                // No RTRG edge, but this already-classified channel's own
+                // live pitch just crossed the split point — only reachable
+                // from a raw mono CV/Gate source with no retrigger line (see
+                // the comment atop this file); real polyphonic input never
+                // changes a still-gated channel's pitch, so this is a no-op
+                // there.
+                int zone = (pitch >= threshold) ? 1 : 0;
+                if (zone != channelZone[c]) {
+                    Zone& z = zoneOf(zone);
+                    classify(c, zone);
+                    if (topOf(z) == c) {
+                        z.retrigPulse.trigger(1e-3f);
+                    }
+                }
+            }
 
             prevGateHigh[c] = gateHigh;
         }
@@ -394,9 +437,18 @@ struct Zones : Module {
 
             for (int c = 0; c < channels; c++) {
                 bool belongs = (channelZone[c] == zoneIndex) && !learnSuppressed[c];
-                outputs[pitchOut].setVoltage(inputs[PITCH_INPUT].getVoltage(c), c);
-                outputs[velOut].setVoltage(inputs[VEL_INPUT].getVoltage(c), c);
-                outputs[aftOut].setVoltage(inputs[AFT_INPUT].getVoltage(c), c);
+                if (belongs) {
+                    zone.lastPitch[c] = inputs[PITCH_INPUT].getVoltage(c);
+                    zone.lastVel[c] = inputs[VEL_INPUT].getVoltage(c);
+                    zone.lastAft[c] = inputs[AFT_INPUT].getVoltage(c);
+                }
+                // PITCH/VEL/AFT: held at their last real value once the
+                // channel stops belonging (a still-releasing envelope
+                // downstream must keep seeing the correct pitch), not reset
+                // to 0 — only GATE/RTRIG actually need to drop instantly.
+                outputs[pitchOut].setVoltage(zone.lastPitch[c], c);
+                outputs[velOut].setVoltage(zone.lastVel[c], c);
+                outputs[aftOut].setVoltage(zone.lastAft[c], c);
                 outputs[gateOut].setVoltage(belongs ? inputs[GATE_INPUT].getVoltage(c) : 0.f, c);
                 outputs[rtrigOut].setVoltage(belongs ? inputs[RTRG_INPUT].getVoltage(c) : 0.f, c);
             }
