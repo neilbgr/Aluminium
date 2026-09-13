@@ -21,7 +21,7 @@
 - [Zones](#zones)
 - [Pads](#pads)
 - [PadX](#padx)
-- [Example patch: 49-key live performance](#example-patch-49-key-live-performance)
+- [Example patch: split bass/chord synth](#example-patch-split-basschord-synth)
 
 ## Panel themes
 
@@ -175,22 +175,12 @@ Place it directly to the right of Pads — or to the right of another PadX alrea
 
 **Patch ideas** — see [Pads](#pads) above.
 
-## Example patch: 49-key live performance
+## Example patch: split bass/chord synth
 
-[`docs/Patch_49keys.vcv`](docs/Patch_49keys.vcv) is a real performance patch built around [AmbientModules](https://github.com/neilbgr/AmbientModules), showing Zones and Pads working together to replace hardware that an ordinary 49-key MIDI keyboard doesn't have.
+[`docs/Zones.vcv`](docs/Zones.vcv) is a self-contained (Fundamental + Core only, no AmbientModules needed) patch showing Zones driving two fully independent voices from a single keyboard, split at **F3**:
 
-The original patch this recreates was designed for a transposable keyboard with 7 assignable pads and 1 slider in active use:
+- **Zone A** (below F3, set to **Monophonic**/Last note) plays a legato bass line: its own V/OCT and Gate/Retrigger drive a dedicated VCO pair → Mixer → VCF (cutoff modulated by its own ADSR) → VCMixer.
+- **Zone B** (at/above F3, left **Polyphonic**) plays chords on its own independent VCO pair → Mixer → VCF/ADSR chain, with its Velocity output additionally scaling a VCA-1's level (through an Octave module used as a simple CV attenuator) for real velocity-sensitive dynamics on the chord — while the bass keeps playing underneath, unaffected.
+- Both voices are summed in a VCMixer before Core's AudioInterface2.
 
-- 4 pads, each triggering one of four Lunar50Drone voices
-- 1 pad toggling the 3rd oscillator on/off across all 4 drones at once
-- 1 pad toggling a Phaser effect
-- 1 pad toggling a Delay effect
-- 1 slider controlling a low-pass filter's cutoff
-
-This patch reproduces every one of those controls from the keyboard's own keys, pitch bend, and mod wheel alone — no pads or extra controller needed:
-
-- **Zones** splits the keyboard at **D#3**: Zone A (below D#3) takes over the role of the 7 pads, Zone B (at/above D#3) stays the ordinary melodic keyboard.
-- **Pads**, fed from Zone A, has each of Zone A's keys learned as a dedicated trigger, mirroring the original 7-pad layout (the 4 drones, the oscillator-3 toggle, the Phaser toggle, the Delay toggle) — with **C3 switched to Latch mode**, used to transpose Zone B up an octave on the fly during the performance, standing in for the transposable keyboard's own transpose control.
-- The low-pass filter cutoff, originally on a slider, is instead mapped to the keyboard's built-in **mod wheel**.
-
-![49-key live performance patch](docs/images/Patch_49keys.png)
+![Split bass/chord synth patch](docs/images/Patch-Zones.png)
