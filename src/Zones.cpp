@@ -491,27 +491,37 @@ struct SplitNoteDisplay : TransparentWidget {
         nvgFill(args.vg);
         nvgStrokeColor(args.vg, nvgRGBA(0x50, 0x50, 0x50, 0xff));
         nvgStroke(args.vg);
+    }
 
-        float voltage = module ? module->params[Zones::SPLIT_PARAM].getValue() : 0.f;
-        float freq = dsp::FREQ_C4 * std::pow(2.f, voltage);
+    // Note name + frequency text drawn on layer 1, like Rack's own
+    // LedDisplayChoice/LedDisplayTextField (see app/LedDisplay.cpp) — that
+    // layer is painted after RackWidget's ambient-darkness overlay, so this
+    // readout stays as bright and legible as PadX's label field even with
+    // the room lights turned way down, instead of dimming along with the
+    // rest of the panel.
+    void drawLayer(const DrawArgs& args, int layer) override {
+        if (layer == 1) {
+            float voltage = module ? module->params[Zones::SPLIT_PARAM].getValue() : 0.f;
+            float freq = dsp::FREQ_C4 * std::pow(2.f, voltage);
 
-        std::string noteStr = voltageToNoteName(voltage);
-        std::string freqStr = string::f(freq >= 1000.f ? "%.0f Hz" : "%.1f Hz", freq);
+            std::string noteStr = voltageToNoteName(voltage);
+            std::string freqStr = string::f(freq >= 1000.f ? "%.0f Hz" : "%.1f Hz", freq);
 
-        std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
-        if (!font) {
-            return;
+            std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
+            if (font && font->handle >= 0) {
+                nvgFontFaceId(args.vg, font->handle);
+                nvgFillColor(args.vg, nvgRGBA(0x40, 0xff, 0x80, 0xee));
+                nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+
+                nvgFontSize(args.vg, 22.f);
+                nvgText(args.vg, box.size.x / 2.f, box.size.y * 0.36f, noteStr.c_str(), NULL);
+
+                nvgFontSize(args.vg, 11.f);
+                nvgText(args.vg, box.size.x / 2.f, box.size.y * 0.75f, freqStr.c_str(), NULL);
+            }
         }
 
-        nvgFontFaceId(args.vg, font->handle);
-        nvgFillColor(args.vg, nvgRGBA(0x40, 0xff, 0x80, 0xee));
-        nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-
-        nvgFontSize(args.vg, 22.f);
-        nvgText(args.vg, box.size.x / 2.f, box.size.y * 0.36f, noteStr.c_str(), NULL);
-
-        nvgFontSize(args.vg, 11.f);
-        nvgText(args.vg, box.size.x / 2.f, box.size.y * 0.75f, freqStr.c_str(), NULL);
+        Widget::drawLayer(args, layer);
     }
 };
 

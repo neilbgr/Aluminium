@@ -454,29 +454,15 @@ struct PadsNoteGridDisplay : OpaqueWidget {
         nvgStrokeColor(args.vg, nvgRGBA(0x50, 0x50, 0x50, 0xff));
         nvgStroke(args.vg);
 
-        std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
-        if (!font) {
-            return;
-        }
-
-        nvgFontFaceId(args.vg, font->handle);
-        nvgFontSize(args.vg, 13.f);
-        nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-
         float cellW = box.size.x / 2.f;
         float cellH = box.size.y / 8.f;
 
         for (int id = 0; id < 16; id++) {
             int col = id / 8;
             int row = id % 8;
-            float cx = cellW * col + cellW / 2.f;
-            float cy = cellH * row + cellH / 2.f;
 
             // `armed` (module->learningId) alone drives the highlight — it's
             // the single source of truth for "this cell is being learned".
-            // `selected` only tracks keyboard focus for typed note entry
-            // below; the two are kept in sync everywhere they're set, so
-            // this never needs to fall back to `selected` for the highlight
             // (doing so previously let a stale selectedId show a second
             // cell as if still armed, e.g. after a cancel-click or after
             // sequential learn advanced learningId elsewhere).
@@ -484,50 +470,82 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             // Sequential (Ctrl/Cmd-armed) learn gets its own color so a whole-
             // row learn run is visually distinct from a plain single-cell one.
             bool sequential = armed && module->learnSequential;
-            bool selected = (id == selectedId);
             if (armed) {
                 nvgBeginPath(args.vg);
                 nvgRoundedRect(args.vg, cellW * col + 1.f, cellH * row + 1.f, cellW - 2.f, cellH - 2.f, 1.f);
                 nvgFillColor(args.vg, sequential ? nvgRGBA(0x40, 0x28, 0x10, 0xff) : nvgRGBA(0x40, 0x40, 0x10, 0xff));
                 nvgFill(args.vg);
             }
+        }
+    }
 
-            int8_t note = module ? module->learnedNotes[id] : (int8_t) (36 + id);
-            std::string label = (selected && focusNote >= 0) ? padNoteName(focusNote) : padNoteName(note);
+    // Note names and the source/output activity ticks are drawn on layer 1,
+    // like Rack's own LedDisplayChoice/LedDisplayTextField (see app/
+    // LedDisplay.cpp) — that layer is painted after RackWidget's ambient-
+    // darkness overlay, so this readout stays as bright and legible as
+    // PadX's label field even with the room lights turned way down,
+    // instead of dimming along with the rest of the panel.
+    void drawLayer(const DrawArgs& args, int layer) override {
+        if (layer == 1) {
+            std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
+            if (font && font->handle >= 0) {
+                nvgFontFaceId(args.vg, font->handle);
+                nvgFontSize(args.vg, 13.f);
+                nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 
-            NVGcolor noteColor = sequential ? nvgRGBA(0xff, 0xa0, 0x40, 0xee)
-                : armed ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee);
-            nvgFillColor(args.vg, noteColor);
-            nvgText(args.vg, cx, cy, label.c_str(), NULL);
+                float cellW = box.size.x / 2.f;
+                float cellH = box.size.y / 8.f;
 
-            // Two independent activity traits around the note name: top
-            // reflects the source gate (`matched`, i.e. the note is
-            // currently held on the incoming poly cable), bottom reflects
-            // the actual output gate (`gateHigh`, post-Latch) — they only
-            // diverge while a cell's Latch is on and the source note has
-            // been released but the output is still toggled high.
-            bool sourceActive = module && module->sourceGateActive[id];
-            bool outputActive = module && module->outputGateActive[id];
-            if (sourceActive || outputActive) {
-                float lineHalfW = cellW / 2.f - 4.f;
-                nvgStrokeColor(args.vg, noteColor);
-                nvgStrokeWidth(args.vg, 1.f);
-                if (sourceActive) {
-                    float lineY = cy - 9.f;
-                    nvgBeginPath(args.vg);
-                    nvgMoveTo(args.vg, cx - lineHalfW, lineY);
-                    nvgLineTo(args.vg, cx + lineHalfW, lineY);
-                    nvgStroke(args.vg);
-                }
-                if (outputActive) {
-                    float lineY = cy + 9.f;
-                    nvgBeginPath(args.vg);
-                    nvgMoveTo(args.vg, cx - lineHalfW, lineY);
-                    nvgLineTo(args.vg, cx + lineHalfW, lineY);
-                    nvgStroke(args.vg);
+                for (int id = 0; id < 16; id++) {
+                    int col = id / 8;
+                    int row = id % 8;
+                    float cx = cellW * col + cellW / 2.f;
+                    float cy = cellH * row + cellH / 2.f;
+
+                    bool armed = module && (id == module->learningId);
+                    bool sequential = armed && module->learnSequential;
+                    bool selected = (id == selectedId);
+
+                    int8_t note = module ? module->learnedNotes[id] : (int8_t) (36 + id);
+                    std::string label = (selected && focusNote >= 0) ? padNoteName(focusNote) : padNoteName(note);
+
+                    NVGcolor noteColor = sequential ? nvgRGBA(0xff, 0xa0, 0x40, 0xee)
+                        : armed ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee);
+                    nvgFillColor(args.vg, noteColor);
+                    nvgText(args.vg, cx, cy, label.c_str(), NULL);
+
+                    // Two independent activity traits around the note name: top
+                    // reflects the source gate (`matched`, i.e. the note is
+                    // currently held on the incoming poly cable), bottom reflects
+                    // the actual output gate (`gateHigh`, post-Latch) — they only
+                    // diverge while a cell's Latch is on and the source note has
+                    // been released but the output is still toggled high.
+                    bool sourceActive = module && module->sourceGateActive[id];
+                    bool outputActive = module && module->outputGateActive[id];
+                    if (sourceActive || outputActive) {
+                        float lineHalfW = cellW / 2.f - 4.f;
+                        nvgStrokeColor(args.vg, noteColor);
+                        nvgStrokeWidth(args.vg, 1.f);
+                        if (sourceActive) {
+                            float lineY = cy - 9.f;
+                            nvgBeginPath(args.vg);
+                            nvgMoveTo(args.vg, cx - lineHalfW, lineY);
+                            nvgLineTo(args.vg, cx + lineHalfW, lineY);
+                            nvgStroke(args.vg);
+                        }
+                        if (outputActive) {
+                            float lineY = cy + 9.f;
+                            nvgBeginPath(args.vg);
+                            nvgMoveTo(args.vg, cx - lineHalfW, lineY);
+                            nvgLineTo(args.vg, cx + lineHalfW, lineY);
+                            nvgStroke(args.vg);
+                        }
+                    }
                 }
             }
         }
+
+        Widget::drawLayer(args, layer);
     }
 };
 
