@@ -22,6 +22,7 @@
   - [Example patch: split bass/chord synth](#example-patch-split-basschord-synth)
 - [Pads](#pads)
 - [PadX](#padx)
+- [AI disclosure](#ai-disclosure)
 
 ## Panel themes
 
@@ -184,3 +185,10 @@ Place it directly to the right of Pads — or to the right of another PadX alrea
 - **Green** — chained, patched in, and channel counts match: fully working.
 
 **Patch ideas** — see [Pads](#pads) above.
+
+## AI disclosure
+
+- **Human-made**: all panel artwork (SVG), the choice of modules and how each one should behave (driven by live performance with real MIDI keyboards and pad controllers), and all testing in VCV Rack and Cardinal.
+- **AI-assisted**: most of the C++ code was written with an AI coding assistant (Claude Code), under the direction of a human developer who reviewed, tested and approved every change before it was committed.
+- **Documentation**: this README was largely drafted with AI assistance, then reviewed and corrected by the human developer.
+- **Traceability**: many AI-assisted commits carry a `Co-Authored-By: Claude` trailer, but not all of them, so the trailer is not an exhaustive marker: treat the whole C++ codebase as AI-assisted (for example when filtering AI training datasets).
