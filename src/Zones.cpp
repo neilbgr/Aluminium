@@ -43,6 +43,21 @@
 // of scope here — patch them directly from the MIDI-CV module to wherever
 // they're needed. Portamento/glide is also out of scope — patch a Slew
 // module after this one's MONO outputs if glide is wanted.
+//
+// DUO switch (Moog Subsequent 37 "DUO MODE", KB CTRL = HI): overrides both
+// zones' modes and ignores the split point entirely. Zone B's outputs become
+// a monophonic voice playing the highest held note on the whole keyboard,
+// Zone A's the other held notes reduced per Zone A's priority menu (default
+// Last note — the Sub37's KB PRIORITY drives OSC 1 the same way), so with
+// C+G held, pressing E moves voice A to E. Each voice carries its own note's VEL/AFT, including
+// after falling back to a still-held note on release. GATE behaves like MONO
+// (true legato). RTRIG fires when a voice's gate rises or when it switches
+// to a genuinely new key-press, never on a mere fallback unless the "retrigger
+// on fallback" menu option is on. With a single key held, both voices play
+// it (paraphonic, as on the Sub37) — or, with "A only" selected in the menu,
+// voice B's gate stays low until a second key is held (duophonic), its
+// PITCH/VEL/AFT holding their last values so a releasing envelope downstream
+// doesn't glide.
 
 static const char* NOTE_NAMES[12] = {
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
@@ -132,6 +147,7 @@ struct Zones : Module {
         LEARN_PARAM,
         ZONE_A_MODE_PARAM,
         ZONE_B_MODE_PARAM,
+        DUO_PARAM,
         NUM_PARAMS
     };
     enum InputIds {
@@ -159,6 +175,7 @@ struct Zones : Module {
         LEARN_LIGHT,
         ZONE_A_MODE_LIGHT,
         ZONE_B_MODE_LIGHT,
+        DUO_LIGHT,
         NUM_LIGHTS
     };
 
@@ -197,6 +214,21 @@ struct Zones : Module {
 
     Zone zoneA, zoneB;
 
+    // DUO mode voice: A = lowest held note, B = highest. PITCH/VEL/AFT keep
+    // their last values while the voice is silent (see the header comment).
+    struct DuoVoice {
+        int channel = -1; // -1 = gate low
+        float pitch = 0.f;
+        float vel = 0.f;
+        float aft = 0.f;
+        dsp::PulseGenerator retrigPulse;
+    };
+
+    DuoVoice duoA, duoB;
+    // Menu options, DUO mode only.
+    bool duoSingleKeyBoth = true; // false = voice B silent with one key held
+    bool duoRetrigOnFallback = false;
+
     // Per input-channel state.
     int channelZone[16];         // -1 = unclassified, 0 = A, 1 = B
     bool prevGateHigh[16];
@@ -206,6 +238,10 @@ struct Zones : Module {
     // topOf()/passthrough until its own note-off releases the channel.
     bool learnSuppressed[16];
     dsp::SchmittTrigger rtrgTrigger[16];
+    // Global note-on order across both zones (each zone's `held` is only
+    // ordered within itself), for DUO voice A's "Last note" priority.
+    uint64_t pressOrder[16] = {};
+    uint64_t pressCounter = 0;
 
     Zones() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
@@ -213,6 +249,7 @@ struct Zones : Module {
         configSwitch(LEARN_PARAM, 0.f, 1.f, 0.f, "Learn split point", {"Idle", "Listening for next note"});
         configSwitch(ZONE_A_MODE_PARAM, 0.f, 1.f, MODE_POLY, "Poly/mono Zone A", {"Polyphonic", "Monophonic"});
         configSwitch(ZONE_B_MODE_PARAM, 0.f, 1.f, MODE_POLY, "Poly/mono Zone B", {"Polyphonic", "Monophonic"});
+        configSwitch(DUO_PARAM, 0.f, 1.f, 0.f, "Duo mode", {"Off", "On (B = highest note, A = other notes per Zone A priority)"});
 
         configInput(PITCH_INPUT, "Pitch (poly)");
         configInput(GATE_INPUT, "Gate (poly)");
@@ -246,6 +283,8 @@ struct Zones : Module {
             zoneA.lastPitch[c] = zoneA.lastVel[c] = zoneA.lastAft[c] = 0.f;
             zoneB.lastPitch[c] = zoneB.lastVel[c] = zoneB.lastAft[c] = 0.f;
         }
+        duoA.channel = -1;
+        duoB.channel = -1;
     }
 
     void onReset() override {
@@ -297,6 +336,7 @@ struct Zones : Module {
         zoneB.remove(c);
         channelZone[c] = zone;
         zoneOf(zone).held.push_back(c);
+        pressOrder[c] = ++pressCounter;
     }
 
     void release(int c) {
@@ -319,6 +359,15 @@ struct Zones : Module {
         // IS the armed state, toggled by the click itself — clicking while
         // armed turns it back off instead of leaving it stuck waiting.
         bool learnArmed = params[LEARN_PARAM].getValue() > 0.5f;
+        bool duo = params[DUO_PARAM].getValue() > 0.5f;
+        // The split point is meaningless in DUO mode, so LEARN can't arm.
+        if (duo && learnArmed) {
+            params[LEARN_PARAM].setValue(0.f);
+            learnArmed = false;
+        }
+        // Channels with a genuine note-on (RTRG edge) this sample — DUO mode
+        // only retriggers a voice for those.
+        bool pressed[16] = {};
 
         for (int c = 0; c < channels; c++) {
             float pitch = inputs[PITCH_INPUT].getVoltage(c);
@@ -330,6 +379,7 @@ struct Zones : Module {
             }
 
             bool rtrgFired = rtrgTrigger[c].process(inputs[RTRG_INPUT].getVoltage(c));
+            pressed[c] = rtrgFired;
             // Defensive fallback: a channel can be gate-high with no
             // classification yet (e.g. patch loaded mid-note) without ever
             // seeing its RTRG edge.
@@ -380,14 +430,25 @@ struct Zones : Module {
 
         int zoneAMode = (int)params[ZONE_A_MODE_PARAM].getValue();
         int zoneBMode = (int)params[ZONE_B_MODE_PARAM].getValue();
-        lights[ZONE_A_MODE_LIGHT].setBrightness(zoneAMode == MODE_MONO ? 1.f : 0.f);
-        lights[ZONE_B_MODE_LIGHT].setBrightness(zoneBMode == MODE_MONO ? 1.f : 0.f);
+        // DUO forces both mode lights on: both zones' outputs are then mono.
+        lights[ZONE_A_MODE_LIGHT].setBrightness(duo || zoneAMode == MODE_MONO ? 1.f : 0.f);
+        lights[ZONE_B_MODE_LIGHT].setBrightness(duo || zoneBMode == MODE_MONO ? 1.f : 0.f);
+        lights[DUO_LIGHT].setBrightness(duo ? 1.f : 0.f);
 
+        if (!duo) {
+            // Re-entering DUO later must see each voice's gate as rising.
+            duoA.channel = -1;
+            duoB.channel = -1;
+        }
+
+        if (duo) {
+            processDuo(pressed, args.sampleTime);
+        }
         // While LEARN is armed, hold every output silent — `learnArmed` was
         // already cleared above the moment a note lands and sets the split
         // point, so that same note's classification plays through normally
         // in this same sample rather than being swallowed too.
-        if (learnArmed) {
+        else if (learnArmed) {
             muteZoneOutputs(ZONE_A_PITCH_OUTPUT, ZONE_A_GATE_OUTPUT, ZONE_A_VEL_OUTPUT, ZONE_A_AFT_OUTPUT, ZONE_A_RTRIG_OUTPUT);
             muteZoneOutputs(ZONE_B_PITCH_OUTPUT, ZONE_B_GATE_OUTPUT, ZONE_B_VEL_OUTPUT, ZONE_B_AFT_OUTPUT, ZONE_B_RTRIG_OUTPUT);
         }
@@ -397,6 +458,92 @@ struct Zones : Module {
             processZone(zoneB, zoneBMode, channels, args.sampleTime,
                 ZONE_B_PITCH_OUTPUT, ZONE_B_GATE_OUTPUT, ZONE_B_VEL_OUTPUT, ZONE_B_AFT_OUTPUT, ZONE_B_RTRIG_OUTPUT, 1);
         }
+    }
+
+    // DUO mode: zones are still classified as usual (so switching DUO off
+    // mid-note resumes cleanly), but both voices pick from all held notes.
+    // Voice B = highest held note. Voice A follows Zone A's priority menu
+    // (default Last note, like the Sub37's KB PRIORITY driving OSC 1) among
+    // the other held notes, so a third key can take over voice A.
+    void processDuo(const bool* pressed, float sampleTime) {
+        int highest = -1;
+        int count = 0;
+        for (const Zone* zone : {&zoneA, &zoneB}) {
+            for (int c : zone->held) {
+                if (learnSuppressed[c]) {
+                    continue;
+                }
+                count++;
+                // >= so two held channels at the same pitch still map to two
+                // distinct voices.
+                if (highest < 0 || inputs[PITCH_INPUT].getVoltage(c) >= inputs[PITCH_INPUT].getVoltage(highest)) {
+                    highest = c;
+                }
+            }
+        }
+
+        int channelA = (count >= 2) ? duoPickA(highest) : highest;
+        int channelB = (count >= 2 || duoSingleKeyBoth) ? highest : -1;
+        processDuoVoice(duoA, channelA, pressed, sampleTime,
+            ZONE_A_PITCH_OUTPUT, ZONE_A_GATE_OUTPUT, ZONE_A_VEL_OUTPUT, ZONE_A_AFT_OUTPUT, ZONE_A_RTRIG_OUTPUT);
+        processDuoVoice(duoB, channelB, pressed, sampleTime,
+            ZONE_B_PITCH_OUTPUT, ZONE_B_GATE_OUTPUT, ZONE_B_VEL_OUTPUT, ZONE_B_AFT_OUTPUT, ZONE_B_RTRIG_OUTPUT);
+    }
+
+    // Picks voice A among all held notes except `exclude` (voice B's).
+    int duoPickA(int exclude) {
+        int best = -1;
+        for (const Zone* zone : {&zoneA, &zoneB}) {
+            for (int c : zone->held) {
+                if (learnSuppressed[c] || c == exclude) {
+                    continue;
+                }
+                bool better;
+                switch (zoneA.priority) {
+                    case PRIORITY_HIGH:
+                        better = best < 0 || inputs[PITCH_INPUT].getVoltage(c) > inputs[PITCH_INPUT].getVoltage(best);
+                        break;
+                    case PRIORITY_LOW:
+                        better = best < 0 || inputs[PITCH_INPUT].getVoltage(c) < inputs[PITCH_INPUT].getVoltage(best);
+                        break;
+                    default: // PRIORITY_LAST
+                        better = best < 0 || pressOrder[c] > pressOrder[best];
+                        break;
+                }
+                if (better) {
+                    best = c;
+                }
+            }
+        }
+        return best;
+    }
+
+    void processDuoVoice(DuoVoice& voice, int channel, const bool* pressed, float sampleTime,
+                         int pitchOut, int gateOut, int velOut, int aftOut, int rtrigOut) {
+        if (channel >= 0) {
+            // Retrigger on gate rise, on a genuinely new key-press becoming
+            // this voice's note (or a same-channel "Reuse" retrigger), and
+            // optionally on fallback to an already-held note.
+            bool fallback = channel != voice.channel && duoRetrigOnFallback;
+            if (voice.channel < 0 || pressed[channel] || fallback) {
+                voice.retrigPulse.trigger(1e-3f);
+            }
+            voice.pitch = inputs[PITCH_INPUT].getVoltage(channel);
+            voice.vel = inputs[VEL_INPUT].getVoltage(channel);
+            voice.aft = inputs[AFT_INPUT].getVoltage(channel);
+        }
+        voice.channel = channel;
+
+        outputs[pitchOut].setChannels(1);
+        outputs[gateOut].setChannels(1);
+        outputs[velOut].setChannels(1);
+        outputs[aftOut].setChannels(1);
+        outputs[rtrigOut].setChannels(1);
+        outputs[pitchOut].setVoltage(voice.pitch);
+        outputs[velOut].setVoltage(voice.vel);
+        outputs[aftOut].setVoltage(voice.aft);
+        outputs[gateOut].setVoltage(channel >= 0 ? 10.f : 0.f);
+        outputs[rtrigOut].setVoltage(voice.retrigPulse.process(sampleTime) ? 10.f : 0.f);
     }
 
     void muteZoneOutputs(int pitchOut, int gateOut, int velOut, int aftOut, int rtrigOut) {
@@ -459,6 +606,8 @@ struct Zones : Module {
         json_t* rootJ = json_object();
         json_object_set_new(rootJ, "zoneAPriority", json_integer(zoneA.priority));
         json_object_set_new(rootJ, "zoneBPriority", json_integer(zoneB.priority));
+        json_object_set_new(rootJ, "duoSingleKeyBoth", json_boolean(duoSingleKeyBoth));
+        json_object_set_new(rootJ, "duoRetrigOnFallback", json_boolean(duoRetrigOnFallback));
         return rootJ;
     }
 
@@ -468,6 +617,12 @@ struct Zones : Module {
         }
         if (json_t* j = json_object_get(rootJ, "zoneBPriority")) {
             zoneB.priority = json_integer_value(j);
+        }
+        if (json_t* j = json_object_get(rootJ, "duoSingleKeyBoth")) {
+            duoSingleKeyBoth = json_boolean_value(j);
+        }
+        if (json_t* j = json_object_get(rootJ, "duoRetrigOnFallback")) {
+            duoRetrigOnFallback = json_boolean_value(j);
         }
     }
 };
@@ -503,6 +658,7 @@ struct SplitNoteDisplay : TransparentWidget {
         if (layer == 1) {
             float voltage = module ? module->params[Zones::SPLIT_PARAM].getValue() : 0.f;
             float freq = dsp::FREQ_C4 * std::pow(2.f, voltage);
+            bool duo = module && module->params[Zones::DUO_PARAM].getValue() > 0.5f;
 
             std::string noteStr = voltageToNoteName(voltage);
             std::string freqStr = string::f(freq >= 1000.f ? "%.0f Hz" : "%.1f Hz", freq);
@@ -514,6 +670,12 @@ struct SplitNoteDisplay : TransparentWidget {
                 nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 
                 nvgFontSize(args.vg, 22.f);
+                // The split point is ignored in DUO mode.
+                if (duo) {
+                    nvgText(args.vg, box.size.x / 2.f, box.size.y / 2.f, "Duo", NULL);
+                    Widget::drawLayer(args, layer);
+                    return;
+                }
                 nvgText(args.vg, box.size.x / 2.f, box.size.y * 0.36f, noteStr.c_str(), NULL);
 
                 nvgFontSize(args.vg, 11.f);
@@ -597,7 +759,9 @@ struct ZonesWidget : ModuleWidget {
         addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col3, row7)), module, Zones::ZONE_A_RTRIG_OUTPUT));
         addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(col4, row7)), module, Zones::ZONE_B_RTRIG_OUTPUT));
 
-        // Row 8: (empty) | "Mono" | ZONE_A_MODE_PARAM | ZONE_B_MODE_PARAM
+        // Row 8: DUO_PARAM | "Mono" | ZONE_A_MODE_PARAM | ZONE_B_MODE_PARAM
+        addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<YellowLight>>>(
+            mm2px(Vec(col1, row8)), module, Zones::DUO_PARAM, Zones::DUO_LIGHT));
         addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(
             mm2px(Vec(col3, row8)), module, Zones::ZONE_A_MODE_PARAM, Zones::ZONE_A_MODE_LIGHT));
         addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(
@@ -609,7 +773,7 @@ struct ZonesWidget : ModuleWidget {
         assert(module);
 
         menu->addChild(new MenuSeparator);
-        menu->addChild(createIndexSubmenuItem("Monophonic priority (Zone A)",
+        menu->addChild(createIndexSubmenuItem("Monophonic priority (Zone A, and Duo voice A)",
             {"Last note", "Highest note", "Lowest note"},
             [=]() { return module->zoneA.priority; },
             [=](int p) { module->zoneA.priority = p; }
@@ -619,6 +783,14 @@ struct ZonesWidget : ModuleWidget {
             [=]() { return module->zoneB.priority; },
             [=](int p) { module->zoneB.priority = p; }
         ));
+
+        menu->addChild(new MenuSeparator);
+        menu->addChild(createIndexSubmenuItem("Duo: single key",
+            {"Both voices (Sub37, paraphonic)", "A only (duophonic)"},
+            [=]() { return module->duoSingleKeyBoth ? 0 : 1; },
+            [=](int i) { module->duoSingleKeyBoth = (i == 0); }
+        ));
+        menu->addChild(createBoolPtrMenuItem("Duo: retrigger on fallback to a held note", "", &module->duoRetrigOnFallback));
 
         appendAluminiumThemeMenu(menu);
     }

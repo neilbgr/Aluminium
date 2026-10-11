@@ -19,6 +19,7 @@
 - [Right-click menu](#right-click-menu)
 - [Shared conventions](#shared-conventions)
 - [Zones](#zones)
+  - [Duo mode (Subsequent 37 style)](#duo-mode-subsequent-37-style)
   - [Example patch: split bass/chord synth](#example-patch-split-basschord-synth)
 - [Pads](#pads)
 - [PadX](#padx)
@@ -64,6 +65,7 @@ Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below
 - **Split point** — the note at/above which incoming notes fall into Zone B (below it, Zone A). Its live note-name + frequency readout above the knob doubles as a right-click-editable text field: type a note name (`C4`, `F#3`, `Bb2`, …) directly instead of dialing it in.
 - **Learn** (lit button) — arms the module to set the split point from the very next note played on the Pitch input, instead of dialing the knob by hand. That learning note itself is excluded from the outputs (it never plays through); only notes played after Learn turns back off do. Click the lit button again to cancel learning without playing a note.
 - **Zone A Mono** / **Zone B Mono** (lit buttons) — *Polyphonic* (passthrough of that zone's own channels, unchanged channel indices, so downstream polyphonic modules never see a spurious retrigger) or *Monophonic* (a single, true-legato voice — see above — reduced per that zone's priority rule below).
+- **Duo** (lit button) — Moog Subsequent 37-style *DUO mode*: overrides both Mono buttons and ignores the split point, turning the two zones' outputs into two monophonic voices — voice B on the **highest** held note, voice A on the other held notes. This is an unusual mode, specific to a few synths; see [Duo mode](#duo-mode-subsequent-37-style) below for how it behaves and why.
 
 **Inputs**
 - **V/OCT**, **Gate**, **Velocity**, **Aftertouch**, **Retrigger** — the 5 polyphonic lanes from Core MIDI-CV (or an upstream Zones module's own zone outputs).
@@ -74,16 +76,45 @@ Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below
 **Lights**
 - **Learn** (red) — lit while Learn is armed and waiting for a note.
 - **Zone A / Zone B mode** (white, built into the mode buttons) — lit while that zone is in Monophonic mode.
+- **Duo** (white, built into the button) — lit while Duo mode is on; both Zone mode lights are then forced on too, since both zones' outputs are monophonic. The split display reads `Duo` instead of the split note.
 
 **Context menu**
-- **Zone A priority (when monophonic)** / **Zone B priority (when monophonic)** — which held note plays when that zone is in Monophonic mode and more than one note overlaps: *Last note*, *Highest note*, or *Lowest note*.
+- **Zone A priority (when monophonic)** / **Zone B priority (when monophonic)** — which held note plays when that zone is in Monophonic mode and more than one note overlaps: *Last note*, *Highest note*, or *Lowest note*. Zone A's setting also picks Duo voice A among the notes other than the highest (see Duo above).
+
+- **Duo: single key** — what happens when only one key is held in Duo mode: *Both voices (Sub37, paraphonic)* (default — both voices play it, both gates high) or *A only (duophonic)* (voice B's gate stays low until a second key is held; its Pitch/Velocity/Aftertouch keep their last values so its envelope's release tail doesn't glide). Use the latter with one envelope per voice for true duophonic playing.
+- **Duo: retrigger on fallback to a held note** — off by default; when on, a voice also fires its Retrigger output when it falls back to a note that was already held (e.g. releasing the top key of two).
 
 ![Zones' mono priority submenus](docs/images/Zones_Menu_Priority.png)
 
 **Patch ideas**
 - The one-keyboard, one-MIDI-channel setup this module exists for: patch Core MIDI-CV straight into one Zones module to get a simple upper/lower keyboard split, or chain two or three together to build several independent zones — bass on the lowest, chords in the middle, lead on top — all from a single physical keyboard.
+- Duo mode, Subsequent 37-style paraphonic: Zone A's V/OCT into one VCO, Zone B's into a second VCO set to a different waveform/octave, both mixed into a single VCF and VCA driven by one envelope from Zone A's Gate. One key plays both oscillators in unison; a second key splits them apart, the highest note on the second VCO, the most recent other note on the first.
 - Set a zone to Monophonic with *Highest note* priority for a simple top-note lead line while still holding chords underneath in the other (Polyphonic) zone.
 - Set the bass zone to Monophonic with *Last note* priority and play it legato (overlapping key presses) for true monosynth-style basslines, gate and envelope behaving exactly like a real analog mono synth would expect.
+
+### Duo mode (Subsequent 37 style)
+
+Duo is not a generic split or polyphony mode. It reproduces the *DUO MODE* of Moog's Subsequent 37 (and Sub 37), a two-oscillator synth: with KB CTRL set to *HI*, its OSC 2 plays the **highest** key held and OSC 1 plays the other key, chosen by the synth's keyboard priority. Both oscillators still go through a single filter and shared envelopes, so it is *paraphonic*: two pitches, one articulation. Older duophonic synths like the ARP Odyssey split their two oscillators across low/high keys in a similar way, but most VCV/Cardinal modules only offer polyphonic channels or a min/max of a polyphonic cable, without a proper legato gate or per-note Velocity/Aftertouch. Duo fills that gap.
+
+In practice:
+- **One key**: both voices play it in unison, both gates high (the Sub37 behaviour). Choose *Duo: single key → A only (duophonic)* in the context menu to keep voice B silent until a second key is held.
+- **Two or more keys**: voice B (Zone B outputs) takes the highest held note. Voice A (Zone A outputs) takes one of the remaining notes, picked by *Zone A priority* (default *Last note*, like the Sub37's KB PRIORITY driving OSC 1).
+- **Gate** is true legato, high while any key is held. **Retrigger** fires when a voice's gate rises or when a genuinely new key-press becomes its note; falling back to an already-held note does not retrigger unless *Duo: retrigger on fallback to a held note* is on.
+- **Velocity/Aftertouch** follow each voice's own note, even after falling back to a still-held note when the other key is released.
+
+Example with the default settings (A | B):
+
+| Keys held (in press order) | Voice A | Voice B |
+|---|---|---|
+| G | G | G |
+| C, then G | C | G |
+| C, G, then E | E | G |
+| release C (E, G held) | E | G |
+| C again (E, G, C held) | C | G |
+
+See it played: [Moog Subsequent 37 and Meris Mercury X — Cinematic synth performance](https://www.youtube.com/watch?v=bAWrd8vLBu8) by Jay Hosking, which makes great use of the Sub37's Duo mode.
+
+Reference: [Moog Subsequent 37 manual (PDF)](https://cdn.inmusicbrands.com/Moog/Subsequent37/Subsequent_37_Manual_0.pdf) — *DUO MODE* and *KB CTRL*, p. 26; *KB PRIORITY*, pp. 42 and 44.
 
 ### Example patch: split bass/chord synth
 
