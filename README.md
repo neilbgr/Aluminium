@@ -64,8 +64,8 @@ Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below
 **Knobs & switches**
 - **Split point** — the note at/above which incoming notes fall into Zone B (below it, Zone A). Its live note-name + frequency readout above the knob doubles as a right-click-editable text field: type a note name (`C4`, `F#3`, `Bb2`, …) directly instead of dialing it in.
 - **Learn** (lit button) — arms the module to set the split point from the very next note played on the Pitch input, instead of dialing the knob by hand. That learning note itself is excluded from the outputs (it never plays through); only notes played after Learn turns back off do. Click the lit button again to cancel learning without playing a note.
-- **Zone A Mono** / **Zone B Mono** (lit buttons) — *Polyphonic* (passthrough of that zone's own channels, unchanged channel indices, so downstream polyphonic modules never see a spurious retrigger) or *Monophonic* (a single, true-legato voice — see above — reduced per that zone's priority rule below).
-- **Duo** (lit button) — Moog Subsequent 37-style *DUO mode*: overrides both Mono buttons and ignores the split point, turning the two zones' outputs into two monophonic voices — voice B on the **highest** held note, voice A on the other held notes. This is an unusual mode, specific to a few synths; see [Duo mode](#duo-mode-subsequent-37-style) below for how it behaves and why.
+- **Zone A Mono** / **Zone B Mono** (lit buttons, bottom row under the A and B output columns, labeled *Duo/Mono*) — *Polyphonic* (passthrough of that zone's own channels, unchanged channel indices, so downstream polyphonic modules never see a spurious retrigger) or *Monophonic* (a single, true-legato voice — see above — reduced per that zone's priority rule below).
+- **Duo** (lit button, bottom-left, on the *Duo/Mono* row) — Moog Subsequent 37-style *DUO mode*: overrides both Mono buttons and ignores the split point, turning the two zones' outputs into two monophonic voices — voice B on the **highest** held note, voice A on the other held notes. This is an unusual mode, specific to a few synths; see [Duo mode](#duo-mode-subsequent-37-style) below for how it behaves and why.
 
 **Inputs**
 - **V/OCT**, **Gate**, **Velocity**, **Aftertouch**, **Retrigger** — the 5 polyphonic lanes from Core MIDI-CV (or an upstream Zones module's own zone outputs).
@@ -76,15 +76,17 @@ Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below
 **Lights**
 - **Learn** (red) — lit while Learn is armed and waiting for a note.
 - **Zone A / Zone B mode** (white, built into the mode buttons) — lit while that zone is in Monophonic mode.
-- **Duo** (white, built into the button) — lit while Duo mode is on; both Zone mode lights are then forced on too, since both zones' outputs are monophonic. The split display reads `Duo` instead of the split note.
+- **Duo** (yellow, built into the button) — lit while Duo mode is on; both Zone mode lights are then forced on too, since both zones' outputs are monophonic. The split display reads `Duo` instead of the split note.
 
 **Context menu**
-- **Zone A priority (when monophonic)** / **Zone B priority (when monophonic)** — which held note plays when that zone is in Monophonic mode and more than one note overlaps: *Last note*, *Highest note*, or *Lowest note*. Zone A's setting also picks Duo voice A among the notes other than the highest (see Duo above).
+- **Monophonic priority (Zone A, and Duo voice A)** / **Monophonic priority (Zone B)** — which held note plays when that zone is in Monophonic mode and more than one note overlaps: *Last note*, *Highest note*, or *Lowest note*. Zone A's setting also picks Duo voice A among the notes other than the highest (see Duo above).
+
+![Zones' mono priority submenus](docs/images/Zones_Menu_Priority.png)
 
 - **Duo: single key** — what happens when only one key is held in Duo mode: *Both voices (Sub37, paraphonic)* (default — both voices play it, both gates high) or *A only (duophonic)* (voice B's gate stays low until a second key is held; its Pitch/Velocity/Aftertouch keep their last values so its envelope's release tail doesn't glide). Use the latter with one envelope per voice for true duophonic playing.
 - **Duo: retrigger on fallback to a held note** — off by default; when on, a voice also fires its Retrigger output when it falls back to a note that was already held (e.g. releasing the top key of two).
 
-![Zones' mono priority submenus](docs/images/Zones_Menu_Priority.png)
+![Zones' Duo single-key submenu](docs/images/Zones_Menu_Duo.png)
 
 **Patch ideas**
 - The one-keyboard, one-MIDI-channel setup this module exists for: patch Core MIDI-CV straight into one Zones module to get a simple upper/lower keyboard split, or chain two or three together to build several independent zones — bass on the lowest, chords in the middle, lead on top — all from a single physical keyboard.
