@@ -10,11 +10,12 @@ using namespace rack;
 // ThemedSvgPort classes hardcode reading that one global in their step(), so
 // there's no way to make stock Themed* components (ThemedScrew,
 // ThemedPJ301MPort, ...) follow a different, per-plugin choice. Aluminium
-// instead offers Follow Rack / Light / Dark, and ships its own screw/port
-// component wrappers (AlScrew/AlPort below) that resolve against this
-// module's choice instead, so they always match our own brushed-aluminium
-// panel artwork exactly — even in the "Light"/"Dark" override cases where it
-// may briefly disagree with Rack's own global.
+// instead offers Follow Rack / Light / Dark, and ships its own screw
+// component wrapper (AlScrew below) that resolves against this module's
+// choice instead, so it always matches our own brushed-aluminium panel
+// artwork exactly — even in the "Light"/"Dark" override cases where it may
+// briefly disagree with Rack's own global. Ports are fixed-style instead
+// (AlPortComponentIn/Out below), independent of any theme.
 //
 // Persisted process-wide (like BogaudioModules' Skins class, in its own file
 // under Rack's user asset dir) rather than per-module/per-patch, since it's
@@ -40,7 +41,7 @@ inline bool aluminiumDark() {
 void loadAluminiumThemeMode();
 void setAluminiumThemeMode(int mode);
 
-// Mirrors app::ThemedSvgScrew / app::ThemedSvgPort exactly (same shape,
+// Mirrors app::ThemedSvgScrew exactly (same shape,
 // confirmed against Rack's source), but resolves against aluminiumDark()
 // instead of settings::preferDarkPanels directly.
 struct AlScrew : app::SvgScrew {
@@ -59,37 +60,14 @@ struct AlScrew : app::SvgScrew {
     }
 };
 
-struct AlPort : app::SvgPort {
-    std::shared_ptr<window::Svg> lightSvg;
-    std::shared_ptr<window::Svg> darkSvg;
-
-    void setSvg(std::shared_ptr<window::Svg> light, std::shared_ptr<window::Svg> dark) {
-        lightSvg = light;
-        darkSvg = dark;
-        SvgPort::setSvg(aluminiumDark() ? darkSvg : lightSvg);
-    }
-
-    void step() override {
-        SvgPort::setSvg(aluminiumDark() ? darkSvg : lightSvg);
-        SvgPort::step();
-    }
-};
-
-// Concrete components wired to Aluminium's own artwork. Currently placeholder
-// copies of Rack's stock screw/port SVGs (res/Screw_*.svg, res/Port_*.svg) —
+// Concrete component wired to Aluminium's own artwork. Currently placeholder
+// copies of Rack's stock screw SVGs (res/Screw_*.svg) —
 // swap those files for the brushed-aluminium versions when ready, no code
 // change needed.
 struct AlScrewComponent : AlScrew {
     AlScrewComponent() {
         setSvg(Svg::load(asset::plugin(pluginInstance, "res/Screw_Light.svg")),
                Svg::load(asset::plugin(pluginInstance, "res/Screw_Dark.svg")));
-    }
-};
-
-struct AlPortComponent : AlPort {
-    AlPortComponent() {
-        setSvg(Svg::load(asset::plugin(pluginInstance, "res/Port_Light.svg")),
-               Svg::load(asset::plugin(pluginInstance, "res/Port_Dark.svg")));
     }
 };
 

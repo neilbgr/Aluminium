@@ -23,6 +23,7 @@
   - [Example patch: split bass/chord synth](#example-patch-split-basschord-synth)
 - [Pads](#pads)
 - [PadX](#padx)
+- [Building and testing](#building-and-testing)
 - [AI disclosure](#ai-disclosure)
 
 ## Panel themes
@@ -115,6 +116,8 @@ Example with the default settings (A | B):
 | C again (E, G, C held) | C | G |
 
 See it played: [Moog Subsequent 37 and Meris Mercury X — Cinematic synth performance](https://www.youtube.com/watch?v=bAWrd8vLBu8) by Jay Hosking, which makes great use of the Sub37's Duo mode.
+
+The same piece replayed live in VCV Rack, with [Zones](#zones) in Duo mode standing in for the Sub37's keyboard: [Moog Subsequent 37 Paraphonic - Cinematic synth performance - VCV Rack version](https://www.youtube.com/watch?v=1cj3m3o9Tgw). Download the patch: [`docs/Subsequent37-Duo.vcv`](docs/Subsequent37-Duo.vcv), or [open its diagram in VCV Patch Tools](https://neilbgr.github.io/VcvPatchTools/?url=https://github.com/neilbgr/Aluminium/blob/main/docs/Subsequent37-Duo.vcv).
 
 Reference: [Moog Subsequent 37 manual (PDF)](https://cdn.inmusicbrands.com/Moog/Subsequent37/Subsequent_37_Manual_0.pdf) — *DUO MODE* and *KB CTRL*, p. 26; *KB PRIORITY*, pp. 42 and 44.
 
@@ -218,6 +221,21 @@ Place it directly to the right of Pads — or to the right of another PadX alrea
 - **Green** — chained, patched in, and channel counts match: fully working.
 
 **Patch ideas** — see [Pads](#pads) above.
+
+## Building and testing
+
+Build the plugin like any other Rack plugin, with `RACK_DIR` pointing at the Rack SDK:
+
+```sh
+make RACK_DIR=/path/to/Rack-SDK
+```
+
+`make test` builds and runs the unit tests: they cover Zones' note tracking (note priorities, split and retrigger, Duo mode, LEARN, notes released when the channel count shrinks) in plain C++, without the Rack SDK. It uses the host compiler by default; to check the Windows build from Linux, cross-compile and run the tests under Wine:
+
+```sh
+make test
+make test TEST_CXX=x86_64-w64-mingw32-g++ TEST_RUN=wine TEST_EXT=.exe
+```
 
 ## AI disclosure
 

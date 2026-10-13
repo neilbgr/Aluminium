@@ -1,6 +1,8 @@
 #include "plugin.hpp"
 #include "PanelTheme.hpp"
 #include "AlPanel.hpp"
+#include "AlDisplay.hpp"
+#include "ZonesTracker.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -33,9 +35,10 @@
 // semantics — including same-channel "Reuse" retriggers that never drop
 // GATE), and is held fixed until that channel's GATE falls (note-off), OR
 // until that channel's own pitch drifts across the split point while GATE
-// stays high with no RTRG edge (see the fallback in process() below) — the
-// case a genuinely monophonic CV/Gate source (no separate retrigger line at
-// all, e.g. a real analog mono keyboard) hits on legato overlap: channel 0's
+// stays high with no RTRG edge (see the fallback in ZonesTracker.hpp's
+// processChannels()) — the case a genuinely monophonic CV/Gate source (no
+// separate retrigger line at all, e.g. a real analog mono keyboard) hits on
+// legato overlap: channel 0's
 // pitch changes to the new note but GATE never drops, so without this
 // fallback the old zone would keep reporting the new note's pitch forever
 // instead of handing it to the zone it now belongs in. Pitch bend/mod wheel
@@ -58,19 +61,6 @@
 // voice B's gate stays low until a second key is held (duophonic), its
 // PITCH/VEL/AFT holding their last values so a releasing envelope downstream
 // doesn't glide.
-
-static const char* NOTE_NAMES[12] = {
-    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
-};
-
-// 0V = C4, matching the module's own note-name readout below.
-static std::string voltageToNoteName(float voltage) {
-    int totalSemi = (int)std::round(voltage * 12.f);
-    int octaveOffset = (int)std::floor(totalSemi / 12.f);
-    int noteIndex = totalSemi - octaveOffset * 12;
-    int octave = 4 + octaveOffset;
-    return std::string(NOTE_NAMES[noteIndex]) + std::to_string(octave);
-}
 
 // Parses note names ("C4", "c#4", "Db-1", "A#3", ...) into a V/OCT voltage.
 // Returns false, leaving *voltage untouched, if s isn't a recognizable note
@@ -127,7 +117,7 @@ static bool noteNameToVoltage(const std::string& s, float* voltage) {
 // read/typed as a note name ("C4") instead of a raw V/OCT voltage.
 struct SplitParamQuantity : ParamQuantity {
     std::string getDisplayValueString() override {
-        return voltageToNoteName(getValue());
+        return alVoltageToNoteName(getValue());
     }
 
     void setDisplayValueString(std::string s) override {
@@ -184,18 +174,12 @@ struct Zones : Module {
         MODE_MONO
     };
 
-    enum Priority {
-        PRIORITY_LAST,
-        PRIORITY_HIGH,
-        PRIORITY_LOW,
-        NUM_PRIORITIES
-    };
+    // Note tracking (zone classification, held notes, LEARN, priorities)
+    // lives in ZonesTracker.hpp, Rack-free so it can be unit-tested.
+    ZonesTracker tracker;
 
+    // Per-zone output state.
     struct Zone {
-        int priority = PRIORITY_LAST;
-        // Channel indices (into the shared PITCH/GATE/VEL/AFT/RTRG inputs)
-        // currently held and classified into this zone, oldest first.
-        std::vector<int> held;
         dsp::PulseGenerator retrigPulse;
         // POLY mode only: each channel's last PITCH/VEL/AFT while it belonged
         // to *this* zone, held onto once it stops belonging (GATE/RTRIG still
@@ -206,10 +190,6 @@ struct Zones : Module {
         float lastPitch[16] = {};
         float lastVel[16] = {};
         float lastAft[16] = {};
-
-        void remove(int c) {
-            held.erase(std::remove(held.begin(), held.end(), c), held.end());
-        }
     };
 
     Zone zoneA, zoneB;
@@ -229,19 +209,10 @@ struct Zones : Module {
     bool duoSingleKeyBoth = true; // false = voice B silent with one key held
     bool duoRetrigOnFallback = false;
 
-    // Per input-channel state.
-    int channelZone[16];         // -1 = unclassified, 0 = A, 1 = B
-    bool prevGateHigh[16];
-    // True for the specific channel whose note-on was consumed to set the
-    // split point via LEARN — that note itself never plays through (only
-    // notes played after LEARN turns off do), so it stays excluded from
-    // topOf()/passthrough until its own note-off releases the channel.
-    bool learnSuppressed[16];
     dsp::SchmittTrigger rtrgTrigger[16];
-    // Global note-on order across both zones (each zone's `held` is only
-    // ordered within itself), for DUO voice A's "Last note" priority.
-    uint64_t pressOrder[16] = {};
-    uint64_t pressCounter = 0;
+    // This sample's PITCH_INPUT voltages (0V beyond the channel count), as
+    // read by the tracker's priority picks.
+    float pitch[16] = {};
 
     Zones() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
@@ -272,13 +243,7 @@ struct Zones : Module {
     }
 
     void resetChannelState() {
-        for (int c = 0; c < 16; c++) {
-            channelZone[c] = -1;
-            prevGateHigh[c] = false;
-            learnSuppressed[c] = false;
-        }
-        zoneA.held.clear();
-        zoneB.held.clear();
+        tracker.reset();
         for (int c = 0; c < 16; c++) {
             zoneA.lastPitch[c] = zoneA.lastVel[c] = zoneA.lastAft[c] = 0.f;
             zoneB.lastPitch[c] = zoneB.lastVel[c] = zoneB.lastAft[c] = 0.f;
@@ -295,61 +260,9 @@ struct Zones : Module {
         return (z == 0) ? zoneA : zoneB;
     }
 
-    // Selects which held channel is currently "on top" (audible) for a zone,
-    // per its priority rule. Returns -1 if the zone has no (non-suppressed)
-    // held notes.
-    int topOf(const Zone& zone) {
-        switch (zone.priority) {
-            case PRIORITY_HIGH:
-            case PRIORITY_LOW: {
-                int best = -1;
-                for (int c : zone.held) {
-                    if (learnSuppressed[c]) {
-                        continue;
-                    }
-                    bool better = (best < 0)
-                        || (zone.priority == PRIORITY_HIGH
-                            ? inputs[PITCH_INPUT].getVoltage(c) > inputs[PITCH_INPUT].getVoltage(best)
-                            : inputs[PITCH_INPUT].getVoltage(c) < inputs[PITCH_INPUT].getVoltage(best));
-                    if (better) {
-                        best = c;
-                    }
-                }
-                return best;
-            }
-            default: // PRIORITY_LAST
-                for (auto it = zone.held.rbegin(); it != zone.held.rend(); ++it) {
-                    if (!learnSuppressed[*it]) {
-                        return *it;
-                    }
-                }
-                return -1;
-        }
-    }
-
-    void classify(int c, int zone) {
-        // Defensive: a channel can only be classified into one zone at a
-        // time, but guard against an unexpected duplicate entry (e.g. a
-        // "Reuse" mode retrigger on a channel whose previous note-off was
-        // somehow missed).
-        zoneA.remove(c);
-        zoneB.remove(c);
-        channelZone[c] = zone;
-        zoneOf(zone).held.push_back(c);
-        pressOrder[c] = ++pressCounter;
-    }
-
-    void release(int c) {
-        int z = channelZone[c];
-        if (z >= 0) {
-            zoneOf(z).remove(c);
-        }
-        channelZone[c] = -1;
-    }
-
     void process(const ProcessArgs& args) override {
         int channels = inputs[PITCH_INPUT].getChannels();
-        if (channels == 0 && (!zoneA.held.empty() || !zoneB.held.empty())) {
+        if (channels == 0 && tracker.anyHeld()) {
             resetChannelState();
         }
         channels = std::min(channels, 16);
@@ -368,62 +281,26 @@ struct Zones : Module {
         // Channels with a genuine note-on (RTRG edge) this sample — DUO mode
         // only retriggers a voice for those.
         bool pressed[16] = {};
-
+        bool gateHigh[16] = {};
+        for (int c = 0; c < 16; c++) {
+            pitch[c] = (c < channels) ? inputs[PITCH_INPUT].getVoltage(c) : 0.f;
+        }
         for (int c = 0; c < channels; c++) {
-            float pitch = inputs[PITCH_INPUT].getVoltage(c);
-            bool gateHigh = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
+            gateHigh[c] = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
+            pressed[c] = rtrgTrigger[c].process(inputs[RTRG_INPUT].getVoltage(c));
+        }
 
-            // Note-off: drop the channel from whichever zone holds it.
-            if (!gateHigh && prevGateHigh[c]) {
-                release(c);
+        ParamQuantity* splitQuantity = getParamQuantity(SPLIT_PARAM);
+        bool retrig[2];
+        if (tracker.processChannels(channels, pitch, gateHigh, pressed, threshold, learnArmed,
+                splitQuantity->getMinValue(), splitQuantity->getMaxValue(), retrig)) {
+            params[SPLIT_PARAM].setValue(threshold);
+            params[LEARN_PARAM].setValue(0.f);
+        }
+        for (int z = 0; z < 2; z++) {
+            if (retrig[z]) {
+                zoneOf(z).retrigPulse.trigger(1e-3f);
             }
-
-            bool rtrgFired = rtrgTrigger[c].process(inputs[RTRG_INPUT].getVoltage(c));
-            pressed[c] = rtrgFired;
-            // Defensive fallback: a channel can be gate-high with no
-            // classification yet (e.g. patch loaded mid-note) without ever
-            // seeing its RTRG edge.
-            bool needsClassification = gateHigh && channelZone[c] < 0;
-
-            if (rtrgFired || needsClassification) {
-                bool isLearnNote = false;
-                if (learnArmed) {
-                    threshold = pitch;
-                    params[SPLIT_PARAM].setValue(pitch);
-                    params[LEARN_PARAM].setValue(0.f);
-                    learnArmed = false;
-                    isLearnNote = true;
-                }
-                int zone = (pitch >= threshold) ? 1 : 0;
-                Zone& z = zoneOf(zone);
-                classify(c, zone);
-                // The note that just set the split point stays excluded from
-                // topOf()/passthrough (see learnSuppressed) until its own
-                // note-off — only notes played after LEARN turns off actually
-                // reach the outputs.
-                learnSuppressed[c] = isLearnNote;
-                if (rtrgFired && topOf(z) == c) {
-                    z.retrigPulse.trigger(1e-3f);
-                }
-            }
-            else if (gateHigh && channelZone[c] >= 0) {
-                // No RTRG edge, but this already-classified channel's own
-                // live pitch just crossed the split point — only reachable
-                // from a raw mono CV/Gate source with no retrigger line (see
-                // the comment atop this file); real polyphonic input never
-                // changes a still-gated channel's pitch, so this is a no-op
-                // there.
-                int zone = (pitch >= threshold) ? 1 : 0;
-                if (zone != channelZone[c]) {
-                    Zone& z = zoneOf(zone);
-                    classify(c, zone);
-                    if (topOf(z) == c) {
-                        z.retrigPulse.trigger(1e-3f);
-                    }
-                }
-            }
-
-            prevGateHigh[c] = gateHigh;
         }
 
         lights[LEARN_LIGHT].setBrightness(learnArmed ? 1.f : 0.f);
@@ -466,56 +343,14 @@ struct Zones : Module {
     // (default Last note, like the Sub37's KB PRIORITY driving OSC 1) among
     // the other held notes, so a third key can take over voice A.
     void processDuo(const bool* pressed, float sampleTime) {
-        int highest = -1;
-        int count = 0;
-        for (const Zone* zone : {&zoneA, &zoneB}) {
-            for (int c : zone->held) {
-                if (learnSuppressed[c]) {
-                    continue;
-                }
-                count++;
-                // >= so two held channels at the same pitch still map to two
-                // distinct voices.
-                if (highest < 0 || inputs[PITCH_INPUT].getVoltage(c) >= inputs[PITCH_INPUT].getVoltage(highest)) {
-                    highest = c;
-                }
-            }
-        }
-
-        int channelA = (count >= 2) ? duoPickA(highest) : highest;
+        int count;
+        int highest = tracker.duoHighest(pitch, &count);
+        int channelA = (count >= 2) ? tracker.duoPickA(highest, pitch) : highest;
         int channelB = (count >= 2 || duoSingleKeyBoth) ? highest : -1;
         processDuoVoice(duoA, channelA, pressed, sampleTime,
             ZONE_A_PITCH_OUTPUT, ZONE_A_GATE_OUTPUT, ZONE_A_VEL_OUTPUT, ZONE_A_AFT_OUTPUT, ZONE_A_RTRIG_OUTPUT);
         processDuoVoice(duoB, channelB, pressed, sampleTime,
             ZONE_B_PITCH_OUTPUT, ZONE_B_GATE_OUTPUT, ZONE_B_VEL_OUTPUT, ZONE_B_AFT_OUTPUT, ZONE_B_RTRIG_OUTPUT);
-    }
-
-    // Picks voice A among all held notes except `exclude` (voice B's).
-    int duoPickA(int exclude) {
-        int best = -1;
-        for (const Zone* zone : {&zoneA, &zoneB}) {
-            for (int c : zone->held) {
-                if (learnSuppressed[c] || c == exclude) {
-                    continue;
-                }
-                bool better;
-                switch (zoneA.priority) {
-                    case PRIORITY_HIGH:
-                        better = best < 0 || inputs[PITCH_INPUT].getVoltage(c) > inputs[PITCH_INPUT].getVoltage(best);
-                        break;
-                    case PRIORITY_LOW:
-                        better = best < 0 || inputs[PITCH_INPUT].getVoltage(c) < inputs[PITCH_INPUT].getVoltage(best);
-                        break;
-                    default: // PRIORITY_LAST
-                        better = best < 0 || pressOrder[c] > pressOrder[best];
-                        break;
-                }
-                if (better) {
-                    best = c;
-                }
-            }
-        }
-        return best;
     }
 
     void processDuoVoice(DuoVoice& voice, int channel, const bool* pressed, float sampleTime,
@@ -557,7 +392,7 @@ struct Zones : Module {
     void processZone(Zone& zone, int mode, int channels, float sampleTime,
                       int pitchOut, int gateOut, int velOut, int aftOut, int rtrigOut, int zoneIndex) {
         if (mode == MODE_MONO) {
-            int top = topOf(zone);
+            int top = tracker.topOf(zoneIndex, pitch);
             outputs[pitchOut].setChannels(1);
             outputs[gateOut].setChannels(1);
             outputs[velOut].setChannels(1);
@@ -583,7 +418,7 @@ struct Zones : Module {
             outputs[rtrigOut].setChannels(channels);
 
             for (int c = 0; c < channels; c++) {
-                bool belongs = (channelZone[c] == zoneIndex) && !learnSuppressed[c];
+                bool belongs = (tracker.channelZone[c] == zoneIndex) && !tracker.learnSuppressed[c];
                 if (belongs) {
                     zone.lastPitch[c] = inputs[PITCH_INPUT].getVoltage(c);
                     zone.lastVel[c] = inputs[VEL_INPUT].getVoltage(c);
@@ -604,8 +439,8 @@ struct Zones : Module {
 
     json_t* dataToJson() override {
         json_t* rootJ = json_object();
-        json_object_set_new(rootJ, "zoneAPriority", json_integer(zoneA.priority));
-        json_object_set_new(rootJ, "zoneBPriority", json_integer(zoneB.priority));
+        json_object_set_new(rootJ, "zoneAPriority", json_integer(tracker.zones[0].priority));
+        json_object_set_new(rootJ, "zoneBPriority", json_integer(tracker.zones[1].priority));
         json_object_set_new(rootJ, "duoSingleKeyBoth", json_boolean(duoSingleKeyBoth));
         json_object_set_new(rootJ, "duoRetrigOnFallback", json_boolean(duoRetrigOnFallback));
         return rootJ;
@@ -613,10 +448,10 @@ struct Zones : Module {
 
     void dataFromJson(json_t* rootJ) override {
         if (json_t* j = json_object_get(rootJ, "zoneAPriority")) {
-            zoneA.priority = json_integer_value(j);
+            tracker.zones[0].priority = math::clamp((int) json_integer_value(j), 0, (int) ZonesTracker::NUM_PRIORITIES - 1);
         }
         if (json_t* j = json_object_get(rootJ, "zoneBPriority")) {
-            zoneB.priority = json_integer_value(j);
+            tracker.zones[1].priority = math::clamp((int) json_integer_value(j), 0, (int) ZonesTracker::NUM_PRIORITIES - 1);
         }
         if (json_t* j = json_object_get(rootJ, "duoSingleKeyBoth")) {
             duoSingleKeyBoth = json_boolean_value(j);
@@ -640,12 +475,7 @@ struct SplitNoteDisplay : TransparentWidget {
     }
 
     void draw(const DrawArgs& args) override {
-        nvgBeginPath(args.vg);
-        nvgRoundedRect(args.vg, 0, 0, box.size.x, box.size.y, 2.f);
-        nvgFillColor(args.vg, nvgRGBA(0x10, 0x10, 0x10, 0xff));
-        nvgFill(args.vg);
-        nvgStrokeColor(args.vg, nvgRGBA(0x50, 0x50, 0x50, 0xff));
-        nvgStroke(args.vg);
+        alDrawLedBackground(args.vg, box.size);
     }
 
     // Note name + frequency text drawn on layer 1, like Rack's own
@@ -660,10 +490,10 @@ struct SplitNoteDisplay : TransparentWidget {
             float freq = dsp::FREQ_C4 * std::pow(2.f, voltage);
             bool duo = module && module->params[Zones::DUO_PARAM].getValue() > 0.5f;
 
-            std::string noteStr = voltageToNoteName(voltage);
+            std::string noteStr = alVoltageToNoteName(voltage);
             std::string freqStr = string::f(freq >= 1000.f ? "%.0f Hz" : "%.1f Hz", freq);
 
-            std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
+            std::shared_ptr<window::Font> font = alLoadLedFont();
             if (font && font->handle >= 0) {
                 nvgFontFaceId(args.vg, font->handle);
                 nvgFillColor(args.vg, nvgRGBA(0x40, 0xff, 0x80, 0xee));
@@ -775,13 +605,13 @@ struct ZonesWidget : ModuleWidget {
         menu->addChild(new MenuSeparator);
         menu->addChild(createIndexSubmenuItem("Monophonic priority (Zone A, and Duo voice A)",
             {"Last note", "Highest note", "Lowest note"},
-            [=]() { return module->zoneA.priority; },
-            [=](int p) { module->zoneA.priority = p; }
+            [=]() { return module->tracker.zones[0].priority; },
+            [=](int p) { module->tracker.zones[0].priority = p; }
         ));
         menu->addChild(createIndexSubmenuItem("Monophonic priority (Zone B)",
             {"Last note", "Highest note", "Lowest note"},
-            [=]() { return module->zoneB.priority; },
-            [=](int p) { module->zoneB.priority = p; }
+            [=]() { return module->tracker.zones[1].priority; },
+            [=](int p) { module->tracker.zones[1].priority = p; }
         ));
 
         menu->addChild(new MenuSeparator);

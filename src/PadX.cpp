@@ -93,15 +93,16 @@ struct PadX : Module {
     }
 
     void process(const ProcessArgs&) override {
+        // Default-constructed: no active channel in any cell, not rooted.
         PadXMessage activeChannel;
-        bool present = motherAt(leftExpander.module);
-
-        if (present) {
-            activeChannel = *(PadXMessage*) leftExpander.consumerMessage;
-        }
-        else {
-            for (int id = 0; id < 16; id++) {
-                activeChannel.activeChannel[id] = -1;
+        // Chained to a Pads, directly or through other PadX — a PadX
+        // neighbor alone isn't enough, its message must come from a Pads.
+        bool present = false;
+        if (motherAt(leftExpander.module)) {
+            const PadXMessage* in = (const PadXMessage*) leftExpander.consumerMessage;
+            if (in->rooted) {
+                activeChannel = *in;
+                present = true;
             }
         }
 
@@ -143,8 +144,9 @@ struct PadX : Module {
     }
 
     void dataFromJson(json_t* rootJ) override {
-        if (json_t* j = json_object_get(rootJ, "label")) {
-            setLabel(json_string_value(j));
+        json_t* labelJ = json_object_get(rootJ, "label");
+        if (labelJ && json_is_string(labelJ)) {
+            setLabel(json_string_value(labelJ));
             labelDirty = true;
         }
         if (json_t* j = json_object_get(rootJ, "labelFromCable")) {

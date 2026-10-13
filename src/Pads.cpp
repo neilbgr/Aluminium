@@ -1,8 +1,10 @@
 #include "plugin.hpp"
 #include "PanelTheme.hpp"
 #include "AlPanel.hpp"
+#include "AlDisplay.hpp"
 #include "PadX.hpp"
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 // Like Cardinal/Rack core's "MIDI-Gate" (18 gate outputs, one per learned
@@ -23,19 +25,6 @@
 // reads which poly channel is currently satisfying each of these 16 cells
 // via PadXMessage, so it can mirror the same note->channel mapping onto
 // whatever lane is patched into it without duplicating the note-learning UI.
-
-static const char* AL_GATE_NOTE_NAMES[12] = {
-    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
-};
-
-static std::string padNoteName(int8_t note) {
-    if (note < 0) {
-        return "--";
-    }
-    int oct = note / 12 - 1;
-    int semi = note % 12;
-    return std::string(AL_GATE_NOTE_NAMES[semi]) + std::to_string(oct);
-}
 
 struct Pads : Module {
     enum ParamIds {
@@ -59,11 +48,20 @@ struct Pads : Module {
     // -1 = unassigned ("--", cell always outputs 0V).
     int8_t learnedNotes[16];
     // -1 = not learning; id of the cell awaiting its next played/typed note otherwise.
-    int learningId = -1;
+    // Atomic: armed/cancelled from the UI thread, advanced by process().
+    std::atomic<int> learningId{-1};
     // Ctrl+click-armed learn sessions advance learningId to the next cell
     // after each learned note instead of leaving learn mode — set per-arm in
     // PadsNoteGridDisplay::onButton(), consumed in process()'s Learn block.
-    bool learnSequential = false;
+    std::atomic<bool> learnSequential{false};
+    // UI -> audio thread handoff for cell edits (typed note, Backspace,
+    // "Clear unpatched cells"): the UI never touches learnedNotes & co.
+    // directly, it posts the new note per cell via requestLearnedNote() and
+    // process() applies it with setLearnedNote() — so only the audio thread
+    // ever writes that state. A later request for the same cell before the
+    // next block simply overwrites the earlier one.
+    std::atomic<int8_t> pendingNote[16];
+    std::atomic<bool> pendingEdit[16];
     bool prevGateHigh[16] = {};
     // Per-cell toggled gate value while that cell is in Latch mode (see
     // LATCH_PARAMS) — flips on each rising edge of the cell's own `matched`
@@ -82,6 +80,10 @@ struct Pads : Module {
 
     Pads() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
+        for (int id = 0; id < 16; id++) {
+            pendingNote[id].store(-1);
+            pendingEdit[id].store(false);
+        }
         configInput(PITCH_INPUT, "Pitch (poly)");
         configInput(GATE_INPUT, "Gate (poly)");
         for (int id = 0; id < 16; id++) {
@@ -99,6 +101,7 @@ struct Pads : Module {
             prevMatched[id] = false;
             sourceGateActive[id] = false;
             outputGateActive[id] = false;
+            pendingEdit[id].store(false);
         }
         learningId = -1;
         learnSequential = false;
@@ -109,6 +112,26 @@ struct Pads : Module {
 
     static int noteOf(float voltage) {
         return 60 + (int)std::round(voltage * 12.f);
+    }
+
+    // learnedNotes is int8_t: notes outside MIDI's 0..127 (beyond roughly
+    // -5V..+5.6V) can't be stored, so they're never learned.
+    static bool isValidNote(int note) {
+        return note >= 0 && note <= 127;
+    }
+
+    // UI thread only — see pendingNote/pendingEdit.
+    void requestLearnedNote(int id, int8_t note) {
+        pendingNote[id].store(note, std::memory_order_relaxed);
+        pendingEdit[id].store(true, std::memory_order_release);
+    }
+
+    void applyPendingEdits() {
+        for (int id = 0; id < 16; id++) {
+            if (pendingEdit[id].exchange(false, std::memory_order_acquire)) {
+                setLearnedNote(id, pendingNote[id].load(std::memory_order_relaxed));
+            }
+        }
     }
 
     // Mirrors HostMIDI-Gate.cpp's own setLearnedNote(): unset any other cell
@@ -132,8 +155,11 @@ struct Pads : Module {
     }
 
     void process(const ProcessArgs&) override {
+        applyPendingEdits();
+
         int channels = std::min(inputs[PITCH_INPUT].getChannels(), 16);
         expMsg.channels = (int8_t) channels;
+        expMsg.rooted = true;
 
         for (int id = 0; id < 16; id++) {
             bool matched = false;
@@ -179,12 +205,15 @@ struct Pads : Module {
         for (int c = 0; c < channels; c++) {
             bool gateHigh = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
             if (gateHigh && !prevGateHigh[c] && learningId >= 0) {
-                setLearnedNote(learningId, (int8_t) noteOf(inputs[PITCH_INPUT].getVoltage(c)));
-                if (learnSequential && learningId < 15) {
-                    learningId += 1;
-                }
-                else {
-                    learningId = -1;
+                int note = noteOf(inputs[PITCH_INPUT].getVoltage(c));
+                if (isValidNote(note)) {
+                    setLearnedNote(learningId, (int8_t) note);
+                    if (learnSequential && learningId < 15) {
+                        learningId += 1;
+                    }
+                    else {
+                        learningId = -1;
+                    }
                 }
             }
             prevGateHigh[c] = gateHigh;
@@ -201,6 +230,13 @@ struct Pads : Module {
         }
     }
 
+    // Bypassed modules get processBypass() instead of process() — keep
+    // applying UI edits there too, so they don't sit pending until un-bypass.
+    void processBypass(const ProcessArgs& args) override {
+        applyPendingEdits();
+        Module::processBypass(args);
+    }
+
     json_t* dataToJson() override {
         json_t* rootJ = json_object();
         json_t* notesJ = json_array();
@@ -215,14 +251,21 @@ struct Pads : Module {
     }
 
     void dataFromJson(json_t* rootJ) override {
+        for (int id = 0; id < 16; id++) {
+            pendingEdit[id].store(false);
+        }
         if (json_t* notesJ = json_object_get(rootJ, "notes")) {
             for (int id = 0; id < 16; id++) {
-                if (json_t* noteJ = json_array_get(notesJ, id)) {
-                    learnedNotes[id] = (int8_t) json_integer_value(noteJ);
-                }
-                else {
-                    learnedNotes[id] = -1;
-                }
+                learnedNotes[id] = -1;
+            }
+            // Anything that isn't a valid MIDI note (hand-edited/corrupt
+            // patch) loads as unassigned rather than wrapping in the int8_t
+            // cast, and setLearnedNote()'s own rule (later cell wins) drops
+            // duplicates, so a note never ends up mapped to two cells.
+            for (int id = 0; id < 16; id++) {
+                json_t* noteJ = json_array_get(notesJ, id);
+                json_int_t note = noteJ ? json_integer_value(noteJ) : -1;
+                setLearnedNote(id, (note >= 0 && note <= 127) ? (int8_t) note : -1);
             }
         }
         if (json_t* latchedJ = json_object_get(rootJ, "latched")) {
@@ -390,7 +433,7 @@ struct PadsNoteGridDisplay : OpaqueWidget {
                 return;
             }
             if (focusNote >= 0) {
-                module->setLearnedNote(selectedId, focusNote);
+                module->requestLearnedNote(selectedId, focusNote);
                 // Mirrors process()'s own Learn block: a cell armed via
                 // Ctrl+click stays in sequential mode after a typed-and-
                 // confirmed note too, not just a played one — advance to
@@ -408,7 +451,7 @@ struct PadsNoteGridDisplay : OpaqueWidget {
             e.consume(this);
         }
         else if (e.key == GLFW_KEY_BACKSPACE || e.key == GLFW_KEY_DELETE) {
-            module->setLearnedNote(selectedId, -1);
+            module->requestLearnedNote(selectedId, -1);
             focusNote = -1;
             e.consume(this);
         }
@@ -435,7 +478,7 @@ struct PadsNoteGridDisplay : OpaqueWidget {
         // already moved on from selectedId.
         if (module) {
             if (clickInsidePanel && *clickInsidePanel && focusNote >= 0) {
-                module->setLearnedNote(selectedId, focusNote);
+                module->requestLearnedNote(selectedId, focusNote);
             }
             module->learningId = -1;
         }
@@ -447,12 +490,7 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     }
 
     void draw(const DrawArgs& args) override {
-        nvgBeginPath(args.vg);
-        nvgRoundedRect(args.vg, 0, 0, box.size.x, box.size.y, 2.f);
-        nvgFillColor(args.vg, nvgRGBA(0x10, 0x10, 0x10, 0xff));
-        nvgFill(args.vg);
-        nvgStrokeColor(args.vg, nvgRGBA(0x50, 0x50, 0x50, 0xff));
-        nvgStroke(args.vg);
+        alDrawLedBackground(args.vg, box.size);
 
         float cellW = box.size.x / 2.f;
         float cellH = box.size.y / 8.f;
@@ -487,7 +525,7 @@ struct PadsNoteGridDisplay : OpaqueWidget {
     // instead of dimming along with the rest of the panel.
     void drawLayer(const DrawArgs& args, int layer) override {
         if (layer == 1) {
-            std::shared_ptr<window::Font> font = APP->window->loadFont(asset::system("res/fonts/ShareTechMono-Regular.ttf"));
+            std::shared_ptr<window::Font> font = alLoadLedFont();
             if (font && font->handle >= 0) {
                 nvgFontFaceId(args.vg, font->handle);
                 nvgFontSize(args.vg, 13.f);
@@ -507,7 +545,7 @@ struct PadsNoteGridDisplay : OpaqueWidget {
                     bool selected = (id == selectedId);
 
                     int8_t note = module ? module->learnedNotes[id] : (int8_t) (36 + id);
-                    std::string label = (selected && focusNote >= 0) ? padNoteName(focusNote) : padNoteName(note);
+                    std::string label = (selected && focusNote >= 0) ? alNoteName(focusNote) : alNoteName(note);
 
                     NVGcolor noteColor = sequential ? nvgRGBA(0xff, 0xa0, 0x40, 0xee)
                         : armed ? nvgRGBA(0xff, 0xff, 0x40, 0xee) : nvgRGBA(0x40, 0xff, 0x80, 0xee);
@@ -656,7 +694,7 @@ struct PadsWidget : ModuleWidget {
         for (int id = 0; id < 16; id++) {
             PortWidget* port = getOutput(Pads::GATE_OUTPUTS + id);
             if (port && APP->scene->rack->getCablesOnPort(port).empty()) {
-                pads->setLearnedNote(id, -1);
+                pads->requestLearnedNote(id, -1);
             }
         }
     }

@@ -18,6 +18,11 @@ struct PadXMessage {
     // tell whether its own (separately patched) lane cable has a matching
     // channel count.
     int8_t channels = 0;
+    // True only when this message originates from a real Pads at the head
+    // of the chain (set by Pads, relayed as-is by each PadX) — a PadX chain
+    // with no Pads to its left forwards the default (false) message, so its
+    // members don't report a Pads connection they don't have.
+    bool rooted = false;
 };
 
 inline bool padIsExpanderModel(Model* model) {
