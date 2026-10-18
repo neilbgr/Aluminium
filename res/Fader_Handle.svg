@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Placeholder fader cap: brushed-aluminium gradient. Its center line is a
+     light drawn by the module (AlFaderHandleLight), not part of this SVG. -->
+<svg width="10mm" height="6mm" viewBox="0 0 10 6" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cap" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="6">
+      <stop offset="0" style="stop-color:#f0f0f0;stop-opacity:1" />
+      <stop offset="0.5" style="stop-color:#b8b8b8;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#8a8a8a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="0.15" y="0.15" width="9.7" height="5.7" rx="0.8" style="fill:url(#cap);stroke:#404040;stroke-width:0.3" />
+</svg>

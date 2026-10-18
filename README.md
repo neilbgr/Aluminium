@@ -6,12 +6,14 @@
 
 - **Zones** turns that one keyboard into as many independent note-range zones as you want. Chain several Zones modules together (feed one zone's output into the next one's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
 - **Pads** and its expander (**PadX**) exist for live performance with MIDI pad controllers: patch in a controller whose pads are velocity- and/or polyphonic-aftertouch-sensitive, learn each pad once, and every pad becomes its own independent, fully expressive CV voice — gate, velocity, aftertouch, whatever lane you need — with no MIDI-mapping software and no hand-built V/OCT comparison logic. The same trick works just as well on a handful of keys reserved off the end of an ordinary keyboard (after a split, if the rest is still being played melodically), and nothing ties either module to a single input — feed one Pads module from one controller's pads while a Zones output handles another controller's keys, and build a full live rig from several MIDI controllers at once, all inside the same patch. Any cell can also be switched to Latch mode, turning a press into an on/off toggle instead of a hold.
+- **Fader** is a labeled slider that a MIDI CC (or any CV) moves on its own, like a motorized fader on a digital mixing desk — grab it, and it's yours again until the CC moves. **Faders2** and **Faders4** put 2 or 4 of them side by side.
 
 | Module                 | What it does                                                                    |
 |-------------------------|----------------------------------------------------------------------------------|
 | [Zones](#zones)         | Splits one polyphonic MIDI-CV stream into two note-range zones, each poly or mono |
 | [Pads](#pads)           | 16 gate outputs, one per learned note, from a poly V/OCT + GATE cable            |
 | [PadX](#padx)           | Pads expander: mirrors its note mapping onto a freely-labeled poly lane |
+| [Fader / Faders2 / Faders4](#fader-faders2-and-faders4) | 1, 2 or 4 labeled faders whose CV input moves the slider itself — last mover wins |
 
 ## Table of Contents
 
@@ -23,6 +25,8 @@
   - [Example patch: split bass/chord synth](#example-patch-split-basschord-synth)
 - [Pads](#pads)
 - [PadX](#padx)
+- [Fader, Faders2 and Faders4](#fader-faders2-and-faders4)
+  - [Context menus](#context-menus)
 - [Building and testing](#building-and-testing)
 - [AI disclosure](#ai-disclosure)
 
@@ -40,18 +44,18 @@ Every Aluminium panel follows one shared **Follow Rack / Light / Dark** setting 
 
 ## Right-click menu
 
-Right-click any Aluminium module to open its context menu. One entry is identical across all 3 modules:
+Right-click any Aluminium module to open its context menu. One entry is identical across all 6 modules:
 
 - **Aluminium theme** — a submenu to switch between *Follow Rack*, *Light*, and *Dark*. Because this setting is shared pack-wide (see [Panel themes](#panel-themes) above), changing it from **any** Aluminium module's menu re-themes **every** Aluminium module currently in the patch, in one step — there's no separate "apply to all" action to trigger, it always applies to the whole pack, immediately.
 
 ![Aluminium theme submenu](docs/images/Menu_Theme.png)
 
-Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
+Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). Fader adds two more; Faders2 and Faders4 have the same two per fader, on each slider's own right-click menu instead (see [Context menus](#context-menus)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
 
 ## Shared conventions
 
 - **V/OCT.** Pitch follows the standard 1 volt per octave convention (0V = C4), like any other Rack oscillator or sequencer.
-- **Where inputs come from.** Every Aluminium input in this pack expects the polyphonic outputs of Rack/Cardinal's own core **MIDI-CV** module (V/OCT, GATE, VELOCITY, AFTERTOUCH, RETRIGGER) — either patched directly, or via one of Zones' own outputs, which carry the same 5 signals split by note range.
+- **Where inputs come from.** Every Zones/Pads/PadX input expects the polyphonic outputs of Rack/Cardinal's own core **MIDI-CV** module (V/OCT, GATE, VELOCITY, AFTERTOUCH, RETRIGGER) — either patched directly, or via one of Zones' own outputs, which carry the same 5 signals split by note range.
 - **16-channel cap.** Every module in this pack follows Rack's own 16-channel polyphony limit — inputs/zones/cells beyond the 16th incoming channel are simply not read.
 
 ## Zones
@@ -222,6 +226,48 @@ Place it directly to the right of Pads — or to the right of another PadX alrea
 
 **Patch ideas** — see [Pads](#pads) above.
 
+## Fader, Faders2 and Faders4
+
+![Fader panel](docs/images/Fader.png) ![Faders2 panel](docs/images/Faders2.png) ![Faders4 panel](docs/images/Faders4.png)
+
+Vertical faders, like channel strips on a digital mixing desk: each slider's position is its output voltage, and its CV input — typically a MIDI CC from Core **MIDI-CV** or **MIDI-CC** — moves the slider itself, the way a motorized fader follows a recalled scene. The two never fight: **whichever moved last wins**.
+
+**Fader** (3HP) has one fader, **Faders2** (6HP) two and **Faders4** (12HP) four. Every fader is a complete, independent 3HP column — its own label, input, output, range and takeover threshold — and everything below applies to each of them; they only differ in where their settings live (see [Context menus](#context-menus) below).
+
+- **The input takes over only when it changes.** Patching a cable in, or a voltage that holds still, never moves the slider on its own. Once the input has moved (by more than the takeover threshold, see below), the slider follows it continuously, to the exact position matching its voltage in the selected range.
+- **Touching the slider takes it back.** While you hold the slider, the input is ignored. After you let go, the slider keeps your position until the input changes again. The same goes for anything else that moves the slider: a double-click reset, a MIDI-MAP / stoermelder MIDI-CAT mapping, a preset, a randomize.
+- **After a patch load**, the slider keeps its saved position until the input changes (a MIDI-CV CC output reads 0V until its first message arrives, so following it right away would slam the fader to 0).
+
+**Label** — same field as [PadX](#padx)'s: click it and type, saved with the patch, no effect on the signal. Empty, it's auto-filled from the input cable's source (its first 6 characters, the most a 3HP column can show), and cleared again when that cable is unpatched, unless you've typed your own text over it. The label also names the slider, the input and the output in their tooltips (*Fader*, or *Fader 1* to *Fader 4*, while it's empty).
+
+**Fader cap** — a lit band across the cap marks the slider's position, so it stays readable even zoomed out.
+
+**Inputs**
+- **CV** (one per fader) — the voltage that moves the slider, read in the same range as the output (clamped to it).
+
+**Outputs**
+- **CV** (one per fader) — the slider's position, in the selected range.
+
+**Settings** (per fader)
+- **Range** — *0 V to 10 V* (default), *0 V to 5 V*, *0 V to 1 V*, *-10 V to 10 V*, *-5 V to 5 V*, *-1 V to 1 V*. In a bipolar range, 0 V is the middle of the travel, and a double-click resets the slider there. Switching range keeps the slider where it is and rescales its voltage.
+- **Input takeover threshold** — how far the input has to move, from where it was when it last lost the slider, before it takes over: *Any change*, *0.1% of range* (default), *0.4% of range* (half a 7-bit MIDI CC step), *2% of range*. Raise it if a noisy source keeps stealing the slider. Once the input is in control, it is followed by any amount.
+
+### Context menus
+
+- **Fader** — both settings are in the module's context menu (right-click the panel), and also in the slider's own right-click menu.
+
+![Fader's Range submenu](docs/images/Fader_Menu_Range.png)
+
+![Fader's Input takeover threshold submenu](docs/images/Fader_Menu_InputTakeoverThreshold.png)
+
+- **Faders2 / Faders4** — each fader's settings are in **its slider's** right-click menu, below Rack's usual slider entries. The module's own context menu only has the Aluminium theme.
+
+![A Faders4 slider's Range submenu](docs/images/Faders_Menu_Range.png)
+
+![A Faders4 slider's Input takeover threshold submenu](docs/images/Faders_Menu_InputTakeoverThreshold.png)
+
+**Update rate** — the faders update their outputs every 32 samples (0.7 ms at 48 kHz) to save CPU: unnoticeable for a slider or a MIDI CC, but a fast signal (e.g. an audio-rate LFO) patched into an input comes out in 0.7 ms steps. Bypassing the module passes each input straight to its output at full rate.
+
 ## Building and testing
 
 Build the plugin like any other Rack plugin, with `RACK_DIR` pointing at the Rack SDK:
@@ -230,7 +276,7 @@ Build the plugin like any other Rack plugin, with `RACK_DIR` pointing at the Rac
 make RACK_DIR=/path/to/Rack-SDK
 ```
 
-`make test` builds and runs the unit tests: they cover Zones' note tracking (note priorities, split and retrigger, Duo mode, LEARN, notes released when the channel count shrinks) in plain C++, without the Rack SDK. It uses the host compiler by default; to check the Windows build from Linux, cross-compile and run the tests under Wine:
+`make test` builds and runs the unit tests: they cover Zones' note tracking (note priorities, split and retrigger, Duo mode, LEARN, notes released when the channel count shrinks) and Fader's slider/input takeover, in plain C++, without the Rack SDK. It uses the host compiler by default; to check the Windows build from Linux, cross-compile and run the tests under Wine:
 
 ```sh
 make test

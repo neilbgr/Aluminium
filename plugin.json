@@ -34,6 +34,27 @@
       "description": "Pads expander: extracts a freely-labeled polyphonic lane (e.g. Velocity, Aftertouch, Retrigger) into 16 mono outputs, one per note Pads has learned",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#padx",
       "tags": ["Expander"]
+    },
+    {
+      "slug": "Fader",
+      "name": "Fader",
+      "description": "Labeled vertical fader with a CV output in a selectable unipolar or bipolar range, and a CV input (e.g. a MIDI CC) that moves the fader itself, like a motorized fader on a digital mixing desk: whichever of the slider or the input moved last wins",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
+      "tags": ["Controller", "Utility"]
+    },
+    {
+      "slug": "Faders2",
+      "name": "Faders2",
+      "description": "Two Fader columns side by side, each with its own label, range and input takeover threshold (set from its slider's right-click menu)",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
+      "tags": ["Controller", "Utility"]
+    },
+    {
+      "slug": "Faders4",
+      "name": "Faders4",
+      "description": "Four Fader columns side by side, each with its own label, range and input takeover threshold (set from its slider's right-click menu)",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
+      "tags": ["Controller", "Utility"]
     }
   ]
 }

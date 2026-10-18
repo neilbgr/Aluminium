@@ -8,3 +8,6 @@ extern Plugin *pluginInstance;
 extern Model *modelZones;
 extern Model *modelPads;
 extern Model *modelPadX;
+extern Model *modelFader;
+extern Model *modelFaders2;
+extern Model *modelFaders4;
