@@ -12,4 +12,5 @@ void init(Plugin *p) {
     p->addModel(modelFader);
     p->addModel(modelFaders2);
     p->addModel(modelFaders4);
+    p->addModel(modelButtons);
 }

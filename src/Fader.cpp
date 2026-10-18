@@ -2,6 +2,7 @@
 #include "PanelTheme.hpp"
 #include "AlPanel.hpp"
 #include "FaderTakeover.hpp"
+#include "AlLabel.hpp"
 
 // "Digital mixing desk" faders: each slider's position is its output voltage
 // (in a selectable unipolar or bipolar range), and its CV input — e.g. a
@@ -57,12 +58,7 @@ struct FaderChannel {
     // Set by the slider widget (UI thread) while the mouse holds it.
     bool dragging = false;
 
-    std::string label;
-    bool labelDirty = true;
-    // Same as PadX: true while `label` was auto-filled from the input
-    // cable's source, so unpatching it can clear a name we chose ourselves
-    // without wiping out one the user typed.
-    bool labelFromCable = false;
+    AlLabel label;
 };
 
 struct FaderBank : Module {
@@ -132,7 +128,7 @@ struct FaderBank : Module {
     // have their final value, so their tooltip names are kept in sync by hand.
     void updatePortNames() {
         for (int i = 0; i < numFaders; i++) {
-            std::string base = channels[i].label.empty() ? defaultName(i) : channels[i].label;
+            std::string base = channels[i].label.text.empty() ? defaultName(i) : channels[i].label.text;
             if (ParamQuantity* pq = getParamQuantity(i)) {
                 pq->name = base;
             }
@@ -143,11 +139,6 @@ struct FaderBank : Module {
                 info->name = base;
             }
         }
-    }
-
-    void setLabel(int i, const std::string& newLabel) {
-        channels[i].label = newLabel;
-        updatePortNames();
     }
 
     void onReset() override {
@@ -183,8 +174,7 @@ struct FaderBank : Module {
         for (int i = 0; i < numFaders; i++) {
             const FaderChannel& ch = channels[i];
             json_t* faderJ = json_object();
-            json_object_set_new(faderJ, "label", json_string(ch.label.c_str()));
-            json_object_set_new(faderJ, "labelFromCable", json_boolean(ch.labelFromCable));
+            ch.label.toJson(faderJ);
             json_object_set_new(faderJ, "range", json_integer(ch.rangeIndex));
             json_object_set_new(faderJ, "threshold", json_integer(ch.thresholdIndex));
             json_array_append_new(fadersJ, faderJ);
@@ -194,13 +184,8 @@ struct FaderBank : Module {
     }
 
     void faderFromJson(int i, json_t* faderJ) {
-        json_t* labelJ = json_object_get(faderJ, "label");
-        if (labelJ && json_is_string(labelJ)) {
-            setLabel(i, json_string_value(labelJ));
-            channels[i].labelDirty = true;
-        }
-        if (json_t* j = json_object_get(faderJ, "labelFromCable")) {
-            channels[i].labelFromCable = json_boolean_value(j);
+        if (channels[i].label.fromJson(faderJ)) {
+            updatePortNames();
         }
         if (json_t* j = json_object_get(faderJ, "range")) {
             setRange(i, json_integer_value(j));
@@ -317,44 +302,10 @@ struct AlFaderHandleLight : RectangleLight<WhiteLight> {
 
 using AlFaderSlider = LightSlider<AlFaderSliderBase, AlFaderHandleLight>;
 
-struct FaderLabelField : LedDisplayTextField {
-    FaderBank* module = nullptr;
-    int index = 0;
-    // See PadXLabelField: only a real edit (not step() mirroring an external
-    // change) lowers labelFromCable.
-    bool syncingFromModule = false;
-
-    FaderLabelField() {
-        multiline = false;
-        placeholder = "Label";
-        textOffset = Vec(0.f, -1.f);
-    }
-
-    void step() override {
-        LedDisplayTextField::step();
-        if (module && module->channels[index].labelDirty) {
-            syncingFromModule = true;
-            setText(module->channels[index].label);
-            syncingFromModule = false;
-            module->channels[index].labelDirty = false;
-        }
-    }
-
-    void onChange(const ChangeEvent& e) override {
-        LedDisplayTextField::onChange(e);
-        if (module) {
-            module->setLabel(index, getText());
-            if (!syncingFromModule) {
-                module->channels[index].labelFromCable = false;
-            }
-        }
-    }
-};
-
 struct FaderBankWidget : ModuleWidget {
     int numFaders;
     PortWidget* cvInputWidgets[MAX_FADERS] = {};
-    bool cvInputWasConnected[MAX_FADERS] = {};
+    AlCableLabelWatcher labelWatchers[MAX_FADERS];
 
     FaderBankWidget(FaderBank* module, int faders, const char* silkName) : numFaders(faders) {
         setModule(module);
@@ -375,18 +326,12 @@ struct FaderBankWidget : ModuleWidget {
         for (int i = 0; i < numFaders; i++) {
             const float centerX = columnWidth * (i + 0.5f);
 
-            // Same position and height as PadX's label (fits
-            // LedDisplayTextField's fixed 12px font), as wide as a 3HP
-            // column allows: ~6 characters.
-            const float labelCenterY = 14.f, labelWidth = 13.2f, labelHeight = 6.f;
-            LedDisplay* labelDisplay = createWidget<LedDisplay>(mm2px(Vec(centerX - labelWidth / 2.f, labelCenterY - labelHeight / 2.f)));
-            labelDisplay->box.size = mm2px(Vec(labelWidth, labelHeight));
-            FaderLabelField* labelField = createWidget<FaderLabelField>(Vec(0, 0));
-            labelField->box.size = labelDisplay->box.size;
-            labelField->module = module;
-            labelField->index = i;
-            labelDisplay->addChild(labelField);
-            addChild(labelDisplay);
+            // Same position as PadX's label, as wide as a 3HP column
+            // allows: ~6 characters.
+            const float labelCenterY = 14.f, labelWidth = 13.2f;
+            alAddLabelField(this, Vec(centerX, labelCenterY), labelWidth,
+                module ? &module->channels[i].label : nullptr,
+                [=]() { module->updatePortNames(); });
 
             // Between the label and the ports: 20.5 to 96.5 mm.
             addParam(createLightParamCentered<AlFaderSlider>(mm2px(Vec(centerX, 58.5f)), module, i, i));
@@ -399,8 +344,6 @@ struct FaderBankWidget : ModuleWidget {
         }
     }
 
-    // Label auto-fill from each input cable's source, polled on the UI thread
-    // exactly like PadXWidget::step() (see there for why).
     void step() override {
         ModuleWidget::step();
 
@@ -408,29 +351,8 @@ struct FaderBankWidget : ModuleWidget {
         if (!mod) {
             return;
         }
-
         for (int i = 0; i < numFaders; i++) {
-            FaderChannel& ch = mod->channels[i];
-            std::vector<CableWidget*> cables = APP->scene->rack->getCompleteCablesOnPort(cvInputWidgets[i]);
-            bool connected = !cables.empty();
-
-            if (connected && !cvInputWasConnected[i] && ch.label.empty()) {
-                engine::Cable* cable = cables[0]->cable;
-                if (cable && cable->outputModule) {
-                    engine::PortInfo* info = cable->outputModule->getOutputInfo(cable->outputId);
-                    if (info) {
-                        mod->setLabel(i, info->getName().substr(0, 6));
-                        ch.labelFromCable = true;
-                        ch.labelDirty = true;
-                    }
-                }
-            }
-            else if (!connected && cvInputWasConnected[i] && ch.labelFromCable) {
-                mod->setLabel(i, "");
-                ch.labelFromCable = false;
-                ch.labelDirty = true;
-            }
-            cvInputWasConnected[i] = connected;
+            labelWatchers[i].step(cvInputWidgets[i], mod->channels[i].label, [=]() { mod->updatePortNames(); });
         }
     }
 

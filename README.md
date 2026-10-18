@@ -7,6 +7,7 @@
 - **Zones** turns that one keyboard into as many independent note-range zones as you want. Chain several Zones modules together (feed one zone's output into the next one's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
 - **Pads** and its expander (**PadX**) exist for live performance with MIDI pad controllers: patch in a controller whose pads are velocity- and/or polyphonic-aftertouch-sensitive, learn each pad once, and every pad becomes its own independent, fully expressive CV voice — gate, velocity, aftertouch, whatever lane you need — with no MIDI-mapping software and no hand-built V/OCT comparison logic. The same trick works just as well on a handful of keys reserved off the end of an ordinary keyboard (after a split, if the rest is still being played melodically), and nothing ties either module to a single input — feed one Pads module from one controller's pads while a Zones output handles another controller's keys, and build a full live rig from several MIDI controllers at once, all inside the same patch. Any cell can also be switched to Latch mode, turning a press into an on/off toggle instead of a hold.
 - **Fader** is a labeled slider that a MIDI CC (or any CV) moves on its own, like a motorized fader on a digital mixing desk — grab it, and it's yours again until the CC moves. **Faders2** and **Faders4** put 2 or 4 of them side by side.
+- **Buttons** does the same for on/off controls: two lit buttons that a gate or trigger can press remotely — momentary, latching, or as a lit indicator in front of a trigger-driven switch.
 
 | Module                 | What it does                                                                    |
 |-------------------------|----------------------------------------------------------------------------------|
@@ -14,6 +15,7 @@
 | [Pads](#pads)           | 16 gate outputs, one per learned note, from a poly V/OCT + GATE cable            |
 | [PadX](#padx)           | Pads expander: mirrors its note mapping onto a freely-labeled poly lane |
 | [Fader / Faders2 / Faders4](#fader-faders2-and-faders4) | 1, 2 or 4 labeled faders whose CV input moves the slider itself — last mover wins |
+| [Buttons](#buttons)     | 2 labeled lit buttons, each pressed by its own panel button or gate/trigger input |
 
 ## Table of Contents
 
@@ -27,6 +29,7 @@
 - [PadX](#padx)
 - [Fader, Faders2 and Faders4](#fader-faders2-and-faders4)
   - [Context menus](#context-menus)
+- [Buttons](#buttons)
 - [Building and testing](#building-and-testing)
 - [AI disclosure](#ai-disclosure)
 
@@ -44,13 +47,13 @@ Every Aluminium panel follows one shared **Follow Rack / Light / Dark** setting 
 
 ## Right-click menu
 
-Right-click any Aluminium module to open its context menu. One entry is identical across all 6 modules:
+Right-click any Aluminium module to open its context menu. One entry is identical across all 7 modules:
 
 - **Aluminium theme** — a submenu to switch between *Follow Rack*, *Light*, and *Dark*. Because this setting is shared pack-wide (see [Panel themes](#panel-themes) above), changing it from **any** Aluminium module's menu re-themes **every** Aluminium module currently in the patch, in one step — there's no separate "apply to all" action to trigger, it always applies to the whole pack, immediately.
 
 ![Aluminium theme submenu](docs/images/Menu_Theme.png)
 
-Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). Fader adds two more; Faders2 and Faders4 have the same two per fader, on each slider's own right-click menu instead (see [Context menus](#context-menus)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
+Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). Fader adds two more; Faders2 and Faders4 have the same two per fader, on each slider's own right-click menu instead (see [Context menus](#context-menus)), and Buttons has a *Flip light (no trigger)* entry on a button's own right-click menu while it's in Toggle trigger mode (see [Buttons](#buttons)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
 
 ## Shared conventions
 
@@ -268,6 +271,29 @@ Vertical faders, like channel strips on a digital mixing desk: each slider's pos
 
 **Update rate** — the faders update their outputs every 32 samples (0.7 ms at 48 kHz) to save CPU: unnoticeable for a slider or a MIDI CC, but a fast signal (e.g. an audio-rate LFO) patched into an input comes out in 0.7 ms steps. Bypassing the module passes each input straight to its output at full rate.
 
+## Buttons
+
+![Buttons panel](docs/images/Buttons.png)
+
+Two lit buttons stacked in one 3HP panel, in the same spirit as [Fader](#fader-faders2-and-faders4): each button has its own label, gate/trigger input and output, and **the input acts as a remote press of the button** — a rising edge (above 1 V) is a press, a falling edge (below 0.1 V) a release, handled exactly like a click. Both rows are independent.
+
+**Modes** — picked per button with the 3-position switch under it, left to right:
+- **Momentary** (default) — the output is a 10 V gate while the button is held or the input is high; the last event wins (e.g. a gate that falls while you still hold the button turns it off). The light follows the output.
+- **Latch** — every press, click or input rising edge, flips the output gate on or off; releases are ignored, so a short trigger flips it too. The light follows the output. The on/off state is saved with the patch.
+- **Toggle trigger** — for a lit indicator in front of a trigger-driven switch (e.g. a sequential "4 to 1" switch used with 2 inputs to turn a sub-oscillator on and off, like the Moog Subsequent 37's SUB button): the **output is a straight copy of the input**, so the trigger reaches the switch untouched, while every press flips the **light** only. Clicking the button flips the light and sends a 1 ms, 10 V trigger out, so the panel button toggles the switch as well, and the light stays in step either way. The light's state is saved with the patch, like the downstream switch's own. If the two ever get out of step (the switch toggled from elsewhere), **Flip light (no trigger)**, on the button's own right-click menu in this mode, flips the light alone.
+
+Switching between Latch and Toggle trigger keeps the light; any change to or from Momentary turns it off. A gate already high when a patch loads isn't taken as a press.
+
+**Label** — same field as [Fader](#fader-faders2-and-faders4)'s (6 characters, auto-filled from the input cable's source, also names the button and its ports, *Button 1* / *Button 2* while empty).
+
+**Inputs**
+- **Gate/trigger** (one per button) — the remote press.
+
+**Outputs**
+- **Gate/trigger** (one per button) — a 10 V gate (Momentary, Latch), or the input passed through plus click triggers (Toggle trigger).
+
+Unlike the faders, Buttons runs every sample, so even a 1-sample trigger is never missed. Bypassing the module passes each input straight to its output.
+
 ## Building and testing
 
 Build the plugin like any other Rack plugin, with `RACK_DIR` pointing at the Rack SDK:
@@ -276,7 +302,7 @@ Build the plugin like any other Rack plugin, with `RACK_DIR` pointing at the Rac
 make RACK_DIR=/path/to/Rack-SDK
 ```
 
-`make test` builds and runs the unit tests: they cover Zones' note tracking (note priorities, split and retrigger, Duo mode, LEARN, notes released when the channel count shrinks) and Fader's slider/input takeover, in plain C++, without the Rack SDK. It uses the host compiler by default; to check the Windows build from Linux, cross-compile and run the tests under Wine:
+`make test` builds and runs the unit tests: they cover Zones' note tracking (note priorities, split and retrigger, Duo mode, LEARN, notes released when the channel count shrinks) Fader's slider/input takeover and Buttons' three modes, in plain C++, without the Rack SDK. It uses the host compiler by default; to check the Windows build from Linux, cross-compile and run the tests under Wine:
 
 ```sh
 make test

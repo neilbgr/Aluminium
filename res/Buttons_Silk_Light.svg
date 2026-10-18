@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Placeholder silkscreen (Light theme) for Buttons: Fader's bands, plus a
+     separator between the two button rows. To be redrawn in Inkscape. -->
+<svg width="15.24mm" height="128.5mm" viewBox="0 0 15.24 128.5" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="top" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="20">
+      <stop offset="0" style="stop-color:#dedede;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#c9c9c9;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bottom" gradientUnits="userSpaceOnUse" x1="0" y1="118.13" x2="0" y2="128.5">
+      <stop offset="0" style="stop-color:#c9c9c9;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#b4b4b4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="15.24" height="128.5" style="fill:#c9c9c9;stroke:none" />
+  <rect x="0" y="0" width="15.24" height="20" style="fill:url(#top);stroke:none" />
+  <rect x="0" y="118.13" width="15.24" height="10.37" style="fill:url(#bottom);stroke:none" />
+  <rect x="1.5" y="64.35" width="12.24" height="0.3" style="fill:#808080;fill-opacity:0.6" />
+  <rect x="0.1322915" y="0.1322915" width="14.975417" height="128.23541" style="fill:none;stroke:#808080;stroke-width:0.264583;stroke-opacity:0.5" />
+</svg>

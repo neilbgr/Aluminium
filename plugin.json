@@ -55,6 +55,13 @@
       "description": "Four Fader columns side by side, each with its own label, range and input takeover threshold (set from its slider's right-click menu)",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
       "tags": ["Controller", "Utility"]
+    },
+    {
+      "slug": "Buttons",
+      "name": "Buttons",
+      "description": "Two labeled lit buttons, each with a gate/trigger input acting as a remote press: Momentary or Latch gate output, or Toggle trigger mode (input trigger passed through, light tracks a downstream trigger-driven switch's state)",
+      "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#buttons",
+      "tags": ["Controller", "Utility"]
     }
   ]
 }
