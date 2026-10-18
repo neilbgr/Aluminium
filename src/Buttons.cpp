@@ -2,6 +2,7 @@
 #include "PanelTheme.hpp"
 #include "AlPanel.hpp"
 #include "AlLabel.hpp"
+#include "AlLightColor.hpp"
 #include "ButtonLogic.hpp"
 
 // Two lit buttons stacked in one 3HP panel, each with its own label, mode,
@@ -23,6 +24,8 @@ static const char* BUTTON_MODE_NAMES[NUM_BUTTON_MODES] = {
 struct ButtonChannel {
     ButtonLogic logic;
     AlLabel label;
+    // Index into AL_LIGHT_COLOR_NAMES (AlLightColor.hpp).
+    int colorIndex = 0;
 };
 
 struct Buttons : Module {
@@ -92,7 +95,9 @@ struct Buttons : Module {
             }
             outputs[i].setVoltage(logic.step(params[i].getValue() > 0.5f, inputs[i].getVoltage(), args.sampleTime));
             if (updateLights) {
-                lights[i].setBrightness(logic.state ? 1.f : 0.f);
+                // Off isn't fully dark: a faint glow in the button's own
+                // color shows where (and which color) it is.
+                lights[i].setBrightness(logic.state ? 1.f : 0.08f);
             }
         }
     }
@@ -104,6 +109,7 @@ struct Buttons : Module {
             const ButtonChannel& ch = channels[i];
             json_t* buttonJ = json_object();
             ch.label.toJson(buttonJ);
+            json_object_set_new(buttonJ, "color", json_integer(ch.colorIndex));
             // A momentary state is only ever "held right now" — not saved.
             json_object_set_new(buttonJ, "state", json_boolean(ch.logic.mode != BUTTON_MOMENTARY && ch.logic.state));
             json_array_append_new(buttonsJ, buttonJ);
@@ -121,6 +127,7 @@ struct Buttons : Module {
             json_t* buttonJ = json_array_get(buttonsJ, i);
             ButtonLogic& logic = channels[i].logic;
             channels[i].label.fromJson(buttonJ);
+            channels[i].colorIndex = alLightColorFromJson(json_object_get(buttonJ, "color"));
             // The mode switch's own value is already loaded (Rack restores
             // params before dataFromJson); apply it before the saved state so
             // process() doesn't see a mode change and clear it.
@@ -146,27 +153,43 @@ struct AlButton : app::SvgSwitch {
     }
 };
 
-// 9.4 mm light over the button's cap: only a thin rim (0.8 mm: 0.3 mm
-// dark ring + 0.5 mm of cap) shows around it.
+// 8.8 mm light over the button's cap: a thin rim (1.1 mm: 0.4 mm dark
+// ring + 0.7 mm of cap) shows around it.
 template <typename TBase>
 struct AlButtonLight : TBase {
     AlButtonLight() {
-        this->box.size = mm2px(Vec(9.4f, 9.4f));
+        this->box.size = mm2px(Vec(8.8f, 8.8f));
     }
 };
 
 // Rack's own LightButton (componentlibrary.hpp) centers the light on the
-// button. Its right-click menu holds Toggle trigger's light resync.
+// button. Its right-click menu holds the light color and Toggle trigger's
+// light resync.
 struct AlLitButton : LightButton<AlButton, AlButtonLight<WhiteLight>> {
-    void appendContextMenu(Menu* menu) override {
+    Buttons* buttons() {
         ParamQuantity* pq = getParamQuantity();
-        Buttons* mod = pq ? dynamic_cast<Buttons*>(pq->module) : nullptr;
+        return pq ? dynamic_cast<Buttons*>(pq->module) : nullptr;
+    }
+
+    void step() override {
+        LightButton<AlButton, AlButtonLight<WhiteLight>>::step();
+        if (Buttons* mod = buttons()) {
+            alApplyLightColor(light, mod->channels[paramId].colorIndex);
+        }
+    }
+
+    void appendContextMenu(Menu* menu) override {
+        Buttons* mod = buttons();
         if (!mod) {
             return;
         }
         int i = paramId;
+        menu->addChild(new MenuSeparator);
+        alAppendLightColorMenu(menu,
+            [=]() { return mod->channels[i].colorIndex; },
+            [=](int k) { mod->channels[i].colorIndex = k; }
+        );
         if (mod->channels[i].logic.mode == BUTTON_TOGGLE_TRIGGER) {
-            menu->addChild(new MenuSeparator);
             // Resync the light with a downstream switch toggled from
             // elsewhere, without sending it a trigger.
             menu->addChild(createMenuItem("Flip light (no trigger)", "",

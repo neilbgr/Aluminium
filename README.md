@@ -1,10 +1,10 @@
 # Aluminium — User Manual
 
-**Aluminium** is a small collection of MIDI-CV utility modules for VCV Rack / Cardinal, all built around one goal: getting more out of real MIDI keyboards and controllers in a live performance patch, beyond what Rack's core **MIDI-CV** module alone gives you. That covers a wide range of setups — from the simplest one, owning a single MIDI master keyboard on one channel and wanting to split it into two or more independently-playable zones, all the way up to a rig built around an advanced controller with velocity- and polyphonic-aftertouch-sensitive pads, where every pad becomes its own fully expressive CV voice.
+**Aluminium** is a collection of modules for VCV Rack / Cardinal built for **live performance with MIDI controllers**, going further than what Rack's core **MIDI-CV** module alone gives you: splitting a MIDI keyboard into independently playable zones, turning velocity- and aftertouch-sensitive pads into fully expressive CV voices, and putting labeled faders and buttons on the panel that a controller's faders, knobs and buttons drive over MIDI — and that the mouse drives just as well. Whichever moved last wins, so a patch mapped to your controllers stays fully playable, and keeps its settings, whether or not they are plugged in.
 
 ![All Aluminium panels, Dark theme](docs/images/AllModules_Dark.png)
 
-- **Zones** turns that one keyboard into as many independent note-range zones as you want. Chain several Zones modules together (feed one zone's output into the next one's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
+- **Zones** turns a single MIDI keyboard into as many independent note-range zones as you want. Chain several Zones modules together (feed one zone's output into the next one's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
 - **Pads** and its expander (**PadX**) exist for live performance with MIDI pad controllers: patch in a controller whose pads are velocity- and/or polyphonic-aftertouch-sensitive, learn each pad once, and every pad becomes its own independent, fully expressive CV voice — gate, velocity, aftertouch, whatever lane you need — with no MIDI-mapping software and no hand-built V/OCT comparison logic. The same trick works just as well on a handful of keys reserved off the end of an ordinary keyboard (after a split, if the rest is still being played melodically), and nothing ties either module to a single input — feed one Pads module from one controller's pads while a Zones output handles another controller's keys, and build a full live rig from several MIDI controllers at once, all inside the same patch. Any cell can also be switched to Latch mode, turning a press into an on/off toggle instead of a hold.
 - **Fader** is a labeled slider that a MIDI CC (or any CV) moves on its own, like a motorized fader on a digital mixing desk — grab it, and it's yours again until the CC moves. **Faders2** and **Faders4** put 2 or 4 of them side by side.
 - **Buttons** does the same for on/off controls: two lit buttons that a gate or trigger can press remotely — momentary, latching, or as a lit indicator in front of a trigger-driven switch.
@@ -53,7 +53,7 @@ Right-click any Aluminium module to open its context menu. One entry is identica
 
 ![Aluminium theme submenu](docs/images/Menu_Theme.png)
 
-Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). Fader adds two more; Faders2 and Faders4 have the same two per fader, on each slider's own right-click menu instead (see [Context menus](#context-menus)), and Buttons has a *Flip light (no trigger)* entry on a button's own right-click menu while it's in Toggle trigger mode (see [Buttons](#buttons)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
+Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). Fader adds three more; Faders2 and Faders4 have the same three per fader, on each slider's own right-click menu instead (see [Context menus](#context-menus)), and Buttons has a *Light color* entry (plus *Flip light (no trigger)* in Toggle trigger mode) on each button's own right-click menu (see [Buttons](#buttons)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
 
 ## Shared conventions
 
@@ -254,20 +254,20 @@ Vertical faders, like channel strips on a digital mixing desk: each slider's pos
 **Settings** (per fader)
 - **Range** — *0 V to 10 V* (default), *0 V to 5 V*, *0 V to 1 V*, *-10 V to 10 V*, *-5 V to 5 V*, *-1 V to 1 V*. In a bipolar range, 0 V is the middle of the travel, and a double-click resets the slider there. Switching range keeps the slider where it is and rescales its voltage.
 - **Input takeover threshold** — how far the input has to move, from where it was when it last lost the slider, before it takes over: *Any change*, *0.1% of range* (default), *0.4% of range* (half a 7-bit MIDI CC step), *2% of range*. Raise it if a noisy source keeps stealing the slider. Once the input is in control, it is followed by any amount.
+- **Light color** — the color of the lit band on the fader cap: *White* (default), *Red*, *Orange*, *Yellow*, *Green*, *Cyan*, *Blue*, *Purple* — e.g. to tell faders apart at a glance.
 
 ### Context menus
 
-- **Fader** — both settings are in the module's context menu (right-click the panel), and also in the slider's own right-click menu.
+The three settings are the same menu on every variant — only where it opens differs:
 
-![Fader's Range submenu](docs/images/Fader_Menu_Range.png)
-
-![Fader's Input takeover threshold submenu](docs/images/Fader_Menu_InputTakeoverThreshold.png)
-
+- **Fader** — in the module's context menu (right-click the panel), and also in the slider's own right-click menu.
 - **Faders2 / Faders4** — each fader's settings are in **its slider's** right-click menu, below Rack's usual slider entries. The module's own context menu only has the Aluminium theme.
 
-![A Faders4 slider's Range submenu](docs/images/Faders_Menu_Range.png)
+![Range submenu](docs/images/Fader_Menu_Range.png)
 
-![A Faders4 slider's Input takeover threshold submenu](docs/images/Faders_Menu_InputTakeoverThreshold.png)
+![Input takeover threshold submenu](docs/images/Fader_Menu_InputTakeoverThreshold.png)
+
+![Light color submenu](docs/images/Fader_Menu_LightColor.png)
 
 **Update rate** — the faders update their outputs every 32 samples (0.7 ms at 48 kHz) to save CPU: unnoticeable for a slider or a MIDI CC, but a fast signal (e.g. an audio-rate LFO) patched into an input comes out in 0.7 ms steps. Bypassing the module passes each input straight to its output at full rate.
 
@@ -283,6 +283,10 @@ Two lit buttons stacked in one 3HP panel, in the same spirit as [Fader](#fader-f
 - **Toggle trigger** — for a lit indicator in front of a trigger-driven switch (e.g. a sequential "4 to 1" switch used with 2 inputs to turn a sub-oscillator on and off, like the Moog Subsequent 37's SUB button): the **output is a straight copy of the input**, so the trigger reaches the switch untouched, while every press flips the **light** only. Clicking the button flips the light and sends a 1 ms, 10 V trigger out, so the panel button toggles the switch as well, and the light stays in step either way. The light's state is saved with the patch, like the downstream switch's own. If the two ever get out of step (the switch toggled from elsewhere), **Flip light (no trigger)**, on the button's own right-click menu in this mode, flips the light alone.
 
 Switching between Latch and Toggle trigger keeps the light; any change to or from Momentary turns it off. A gate already high when a patch loads isn't taken as a press.
+
+**Light color** — on each button's own right-click menu: *White* (default), *Red*, *Orange*, *Yellow*, *Green*, *Cyan*, *Blue*, *Purple*. Off, a button keeps a faint glow in its color, so you can still see where it is and which one it is.
+
+![A button's right-click menu (Toggle trigger mode)](docs/images/Buttons_Menu.png)
 
 **Label** — same field as [Fader](#fader-faders2-and-faders4)'s (6 characters, auto-filled from the input cable's source, also names the button and its ports, *Button 1* / *Button 2* while empty).
 

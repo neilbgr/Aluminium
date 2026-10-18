@@ -3,6 +3,7 @@
 #include "AlPanel.hpp"
 #include "FaderTakeover.hpp"
 #include "AlLabel.hpp"
+#include "AlLightColor.hpp"
 
 // "Digital mixing desk" faders: each slider's position is its output voltage
 // (in a selectable unipolar or bipolar range), and its CV input — e.g. a
@@ -59,6 +60,8 @@ struct FaderChannel {
     bool dragging = false;
 
     AlLabel label;
+    // Cap band color, index into AL_LIGHT_COLOR_NAMES (AlLightColor.hpp).
+    int colorIndex = 0;
 };
 
 struct FaderBank : Module {
@@ -175,6 +178,7 @@ struct FaderBank : Module {
             const FaderChannel& ch = channels[i];
             json_t* faderJ = json_object();
             ch.label.toJson(faderJ);
+            json_object_set_new(faderJ, "color", json_integer(ch.colorIndex));
             json_object_set_new(faderJ, "range", json_integer(ch.rangeIndex));
             json_object_set_new(faderJ, "threshold", json_integer(ch.thresholdIndex));
             json_array_append_new(fadersJ, faderJ);
@@ -187,6 +191,7 @@ struct FaderBank : Module {
         if (channels[i].label.fromJson(faderJ)) {
             updatePortNames();
         }
+        channels[i].colorIndex = alLightColorFromJson(json_object_get(faderJ, "color"));
         if (json_t* j = json_object_get(faderJ, "range")) {
             setRange(i, json_integer_value(j));
         }
@@ -224,7 +229,7 @@ struct Faders4 : FaderBank {
 };
 
 #ifndef HEADLESS
-// The Range / Input takeover threshold submenus of fader `i`, shared by its
+// The Range / Input takeover threshold / Light color submenus of fader `i`, shared by its
 // slider's right-click menu and (on the single Fader) the module's own.
 static void appendFaderMenu(Menu* menu, FaderBank* bank, int i) {
     std::vector<std::string> rangeNames;
@@ -243,6 +248,10 @@ static void appendFaderMenu(Menu* menu, FaderBank* bank, int i) {
         [=]() { return bank->channels[i].thresholdIndex; },
         [=](int k) { bank->setThreshold(i, k); }
     ));
+    alAppendLightColorMenu(menu,
+        [=]() { return bank->channels[i].colorIndex; },
+        [=](int k) { bank->channels[i].colorIndex = k; }
+    );
 }
 
 // Theme-independent, like Aluminium's ports. 76 mm track.
@@ -300,7 +309,14 @@ struct AlFaderHandleLight : RectangleLight<WhiteLight> {
     }
 };
 
-using AlFaderSlider = LightSlider<AlFaderSliderBase, AlFaderHandleLight>;
+struct AlFaderSlider : LightSlider<AlFaderSliderBase, AlFaderHandleLight> {
+    void step() override {
+        LightSlider<AlFaderSliderBase, AlFaderHandleLight>::step();
+        if (FaderBank* b = bank()) {
+            alApplyLightColor(light, b->channels[paramId].colorIndex);
+        }
+    }
+};
 
 struct FaderBankWidget : ModuleWidget {
     int numFaders;

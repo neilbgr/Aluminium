@@ -4,7 +4,7 @@
   "version": "2.2.0",
   "license": "GPL-3.0-or-later",
   "brand": "Aluminium",
-  "description": "A small collection of utility Rack modules.",
+  "description": "Live-performance modules for MIDI controllers: keyboard splits, expressive pad voices, and labeled faders and buttons driven by MIDI or the mouse alike, so a patch stays playable with or without its controllers plugged in.",
   "author": "Neil Baumberger",
   "authorEmail": "neilbgr8@gmail.com",
   "authorUrl": "https://github.com/neilbgr",
