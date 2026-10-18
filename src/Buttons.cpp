@@ -200,8 +200,6 @@ struct AlLitButton : LightButton<AlButton, AlButtonLight<WhiteLight>> {
 };
 
 struct ButtonsWidget : ModuleWidget {
-    PortWidget* inputWidgets[NUM_BUTTONS] = {};
-    AlCableLabelWatcher labelWatchers[NUM_BUTTONS];
 
     explicit ButtonsWidget(Buttons* module) {
         setModule(module);
@@ -239,21 +237,8 @@ struct ButtonsWidget : ModuleWidget {
             addParam(createLightParamCentered<AlLitButton>(mm2px(Vec(centerX, buttonY + dy)), module, i, i));
             // Left to right: Momentary, Latch, Toggle trigger.
             addParam(createParamCentered<CKSSThreeHorizontal>(mm2px(Vec(centerX, modeY + dy)), module, Buttons::MODE_PARAM + i));
-            inputWidgets[i] = createInputCentered<AlPortComponentIn>(mm2px(Vec(centerX, inputY + dy)), module, i);
-            addInput(inputWidgets[i]);
+            addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(centerX, inputY + dy)), module, i));
             addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(centerX, outputY + dy)), module, i));
-        }
-    }
-
-    void step() override {
-        ModuleWidget::step();
-
-        Buttons* mod = dynamic_cast<Buttons*>(module);
-        if (!mod) {
-            return;
-        }
-        for (int i = 0; i < NUM_BUTTONS; i++) {
-            labelWatchers[i].step(inputWidgets[i], mod->channels[i].label, [=]() { mod->updatePortNames(); });
         }
     }
 

@@ -241,7 +241,7 @@ Vertical faders, like channel strips on a digital mixing desk: each slider's pos
 - **Touching the slider takes it back.** While you hold the slider, the input is ignored. After you let go, the slider keeps your position until the input changes again. The same goes for anything else that moves the slider: a double-click reset, a MIDI-MAP / stoermelder MIDI-CAT mapping, a preset, a randomize.
 - **After a patch load**, the slider keeps its saved position until the input changes (a MIDI-CV CC output reads 0V until its first message arrives, so following it right away would slam the fader to 0).
 
-**Label** — same field as [PadX](#padx)'s: click it and type, saved with the patch, no effect on the signal. Empty, it's auto-filled from the input cable's source (its first 6 characters, the most a 3HP column can show), and cleared again when that cable is unpatched, unless you've typed your own text over it. The label also names the slider, the input and the output in their tooltips (*Fader*, or *Fader 1* to *Fader 4*, while it's empty).
+**Label** — a field like [PadX](#padx)'s: click it and type (up to the 6 characters a 3HP column can show), saved with the patch, no effect on the signal. Unlike PadX's, it's never filled in automatically: the input is usually a MIDI CC, whose name says nothing useful, so you name each fader yourself. The label also names the slider, the input and the output in their tooltips (*Fader*, or *Fader 1* to *Fader 4*, while it's empty).
 
 **Fader cap** — a lit band across the cap marks the slider's position, so it stays readable even zoomed out.
 
@@ -288,7 +288,7 @@ Switching between Latch and Toggle trigger keeps the light; any change to or fro
 
 ![A button's right-click menu (Toggle trigger mode)](docs/images/Buttons_Menu.png)
 
-**Label** — same field as [Fader](#fader-faders2-and-faders4)'s (6 characters, auto-filled from the input cable's source, also names the button and its ports, *Button 1* / *Button 2* while empty).
+**Label** — same field as [Fader](#fader-faders2-and-faders4)'s: typed by hand (6 characters), never filled in automatically; it also names the button and its ports (*Button 1* / *Button 2* while empty).
 
 **Inputs**
 - **Gate/trigger** (one per button) — the remote press.

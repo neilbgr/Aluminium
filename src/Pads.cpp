@@ -62,6 +62,9 @@ struct Pads : Module {
     // next block simply overwrites the earlier one.
     std::atomic<int8_t> pendingNote[16];
     std::atomic<bool> pendingEdit[16];
+    // Raised after any pendingEdit[] — lets process() skip the 16 per-cell
+    // atomic exchanges on the (almost every) sample with nothing pending.
+    std::atomic<bool> anyPendingEdit{false};
     bool prevGateHigh[16] = {};
     // Per-cell toggled gate value while that cell is in Latch mode (see
     // LATCH_PARAMS) — flips on each rising edge of the cell's own `matched`
@@ -124,9 +127,15 @@ struct Pads : Module {
     void requestLearnedNote(int id, int8_t note) {
         pendingNote[id].store(note, std::memory_order_relaxed);
         pendingEdit[id].store(true, std::memory_order_release);
+        anyPendingEdit.store(true, std::memory_order_release);
     }
 
     void applyPendingEdits() {
+        // Cleared before the scan: an edit posted meanwhile raises it again
+        // and is picked up next sample at the latest.
+        if (!anyPendingEdit.load(std::memory_order_relaxed) || !anyPendingEdit.exchange(false, std::memory_order_acquire)) {
+            return;
+        }
         for (int id = 0; id < 16; id++) {
             if (pendingEdit[id].exchange(false, std::memory_order_acquire)) {
                 setLearnedNote(id, pendingNote[id].load(std::memory_order_relaxed));
@@ -161,14 +170,22 @@ struct Pads : Module {
         expMsg.channels = (int8_t) channels;
         expMsg.rooted = true;
 
+        // Each channel's gate and note, once per sample (not once per cell):
+        // -1 = gate low, so it can't match any learned note.
+        int channelNote[16];
+        bool channelGate[16];
+        for (int c = 0; c < channels; c++) {
+            channelGate[c] = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
+            channelNote[c] = channelGate[c] ? noteOf(inputs[PITCH_INPUT].getVoltage(c)) : -1;
+        }
+
         for (int id = 0; id < 16; id++) {
             bool matched = false;
             int matchedChannel = -1;
 
             if (learnedNotes[id] >= 0) {
                 for (int c = 0; c < channels; c++) {
-                    bool gateHigh = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
-                    if (gateHigh && noteOf(inputs[PITCH_INPUT].getVoltage(c)) == learnedNotes[id]) {
+                    if (channelNote[c] == learnedNotes[id]) {
                         matched = true;
                         matchedChannel = c;   // last matching channel wins if 2+ channels share a pitch
                     }
@@ -203,9 +220,9 @@ struct Pads : Module {
 
         // Learn: on any channel's gate rising edge, if a cell is armed, assign it that note.
         for (int c = 0; c < channels; c++) {
-            bool gateHigh = inputs[GATE_INPUT].getVoltage(c) >= 1.f;
+            bool gateHigh = channelGate[c];
             if (gateHigh && !prevGateHigh[c] && learningId >= 0) {
-                int note = noteOf(inputs[PITCH_INPUT].getVoltage(c));
+                int note = channelNote[c];
                 if (isValidNote(note)) {
                     setLearnedNote(learningId, (int8_t) note);
                     if (learnSequential && learningId < 15) {

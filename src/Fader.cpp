@@ -320,8 +320,6 @@ struct AlFaderSlider : LightSlider<AlFaderSliderBase, AlFaderHandleLight> {
 
 struct FaderBankWidget : ModuleWidget {
     int numFaders;
-    PortWidget* cvInputWidgets[MAX_FADERS] = {};
-    AlCableLabelWatcher labelWatchers[MAX_FADERS];
 
     FaderBankWidget(FaderBank* module, int faders, const char* silkName) : numFaders(faders) {
         setModule(module);
@@ -354,21 +352,8 @@ struct FaderBankWidget : ModuleWidget {
 
             // Same Y as the last two port rows of Zones (row7/row8) and Pads.
             const float inputY = 103.f, outputY = 114.f;
-            cvInputWidgets[i] = createInputCentered<AlPortComponentIn>(mm2px(Vec(centerX, inputY)), module, i);
-            addInput(cvInputWidgets[i]);
+            addInput(createInputCentered<AlPortComponentIn>(mm2px(Vec(centerX, inputY)), module, i));
             addOutput(createOutputCentered<AlPortComponentOut>(mm2px(Vec(centerX, outputY)), module, i));
-        }
-    }
-
-    void step() override {
-        ModuleWidget::step();
-
-        FaderBank* mod = dynamic_cast<FaderBank*>(module);
-        if (!mod) {
-            return;
-        }
-        for (int i = 0; i < numFaders; i++) {
-            labelWatchers[i].step(cvInputWidgets[i], mod->channels[i].label, [=]() { mod->updatePortNames(); });
         }
     }
 

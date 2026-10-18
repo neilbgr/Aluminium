@@ -261,11 +261,18 @@ struct PadXWidget : ModuleWidget {
             return;
         }
 
-        std::vector<CableWidget*> cables = APP->scene->rack->getCompleteCablesOnPort(laneInputWidget);
-        bool connected = !cables.empty();
+        // Only the engine port's connected flag is read every frame; the
+        // cable list (a walk over every cable in the patch) is only fetched
+        // on the frame the input gets connected.
+        engine::Port* port = laneInputWidget->getPort();
+        bool connected = port && port->isConnected();
+        if (connected == laneInputWasConnected) {
+            return;
+        }
 
-        if (connected && !laneInputWasConnected && mod->label.empty()) {
-            engine::Cable* cable = cables[0]->cable;
+        if (connected && mod->label.empty()) {
+            std::vector<CableWidget*> cables = APP->scene->rack->getCompleteCablesOnPort(laneInputWidget);
+            engine::Cable* cable = cables.empty() ? nullptr : cables[0]->cable;
             if (cable && cable->outputModule) {
                 engine::PortInfo* info = cable->outputModule->getOutputInfo(cable->outputId);
                 if (info) {
@@ -279,7 +286,7 @@ struct PadXWidget : ModuleWidget {
                 }
             }
         }
-        else if (!connected && laneInputWasConnected && mod->labelFromCable) {
+        else if (!connected && mod->labelFromCable) {
             // The cable that provided this label is gone — clear it back to
             // empty rather than leave a stale name, but only because we set
             // it ourselves; a name the user typed by hand is left alone.

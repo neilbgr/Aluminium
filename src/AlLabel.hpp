@@ -5,27 +5,19 @@
 using namespace rack;
 
 // PadX-style per-control label, shared by Fader/Faders2/Faders4 and Buttons:
-// a single-line LED text field, purely cosmetic, saved with the patch, and
-// auto-filled from the source of the cable patched into the control's input
-// while it's empty (cleared again when that cable goes, unless the user typed
-// over it). PadX keeps its own copy of the same logic (src/PadX.cpp).
-
-// Max characters an auto-filled label keeps — what a 3HP-wide field shows.
-static const size_t AL_LABEL_AUTO_LENGTH = 6;
+// a single-line LED text field, purely cosmetic, saved with the patch, typed
+// by hand only (unlike PadX's, which also auto-fills from its input cable —
+// a fader's or button's input is usually a MIDI CC/gate, whose name says
+// nothing useful).
 
 struct AlLabel {
     std::string text;
-    // Set whenever `text` changes from outside the field (patch load,
-    // auto-fill), so the field re-syncs its displayed text next frame.
+    // Set whenever `text` changes from outside the field (patch load), so
+    // the field re-syncs its displayed text next frame.
     bool dirty = true;
-    // True while `text` was auto-filled from the input cable's source, so
-    // unpatching it can clear a name we chose ourselves without wiping out
-    // one the user typed.
-    bool fromCable = false;
 
     void toJson(json_t* rootJ) const {
         json_object_set_new(rootJ, "label", json_string(text.c_str()));
-        json_object_set_new(rootJ, "labelFromCable", json_boolean(fromCable));
     }
 
     // Returns true if a label was read (caller then refreshes port names).
@@ -37,9 +29,6 @@ struct AlLabel {
             dirty = true;
             changed = true;
         }
-        if (json_t* j = json_object_get(rootJ, "labelFromCable")) {
-            fromCable = json_boolean_value(j);
-        }
         return changed;
     }
 };
@@ -50,9 +39,6 @@ struct AlLabel {
 struct AlLabelField : LedDisplayTextField {
     AlLabel* label = nullptr;
     std::function<void()> onEdited;
-    // See PadXLabelField: only a real edit (not step() mirroring an external
-    // change) lowers fromCable.
-    bool syncingFromModule = false;
 
     AlLabelField() {
         multiline = false;
@@ -63,9 +49,7 @@ struct AlLabelField : LedDisplayTextField {
     void step() override {
         LedDisplayTextField::step();
         if (label && label->dirty) {
-            syncingFromModule = true;
             setText(label->text);
-            syncingFromModule = false;
             label->dirty = false;
         }
     }
@@ -74,9 +58,6 @@ struct AlLabelField : LedDisplayTextField {
         LedDisplayTextField::onChange(e);
         if (label) {
             label->text = getText();
-            if (!syncingFromModule) {
-                label->fromCable = false;
-            }
             if (onEdited) {
                 onEdited();
             }
@@ -99,39 +80,4 @@ inline AlLabelField* alAddLabelField(ModuleWidget* mw, Vec centerMm, float width
     return field;
 }
 
-// Label auto-fill from the cable patched into `input`. Call from the
-// ModuleWidget's step(): cable topology only exists at the UI layer, and
-// polling it there (UI thread, no engine lock) is the standard way plugins do
-// it — see PadXWidget::step() for the full reasoning.
-struct AlCableLabelWatcher {
-    bool wasConnected = false;
-
-    void step(PortWidget* input, AlLabel& label, const std::function<void()>& onEdited) {
-        if (!input) {
-            return;
-        }
-        std::vector<CableWidget*> cables = APP->scene->rack->getCompleteCablesOnPort(input);
-        bool connected = !cables.empty();
-
-        if (connected && !wasConnected && label.text.empty()) {
-            engine::Cable* cable = cables[0]->cable;
-            if (cable && cable->outputModule) {
-                engine::PortInfo* info = cable->outputModule->getOutputInfo(cable->outputId);
-                if (info) {
-                    label.text = info->getName().substr(0, AL_LABEL_AUTO_LENGTH);
-                    label.fromCable = true;
-                    label.dirty = true;
-                    onEdited();
-                }
-            }
-        }
-        else if (!connected && wasConnected && label.fromCable) {
-            label.text.clear();
-            label.fromCable = false;
-            label.dirty = true;
-            onEdited();
-        }
-        wasConnected = connected;
-    }
-};
 #endif

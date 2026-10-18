@@ -45,14 +45,14 @@
     {
       "slug": "Faders2",
       "name": "Faders2",
-      "description": "Two Fader columns side by side, each with its own label, range and input takeover threshold (set from its slider's right-click menu)",
+      "description": "Two Fader columns side by side, each with its own label, range, input takeover threshold and light color (set from its slider's right-click menu)",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
       "tags": ["Controller", "Utility"]
     },
     {
       "slug": "Faders4",
       "name": "Faders4",
-      "description": "Four Fader columns side by side, each with its own label, range and input takeover threshold (set from its slider's right-click menu)",
+      "description": "Four Fader columns side by side, each with its own label, range, input takeover threshold and light color (set from its slider's right-click menu)",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
       "tags": ["Controller", "Utility"]
     },
