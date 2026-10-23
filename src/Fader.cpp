@@ -50,6 +50,11 @@ static const int NUM_FADER_THRESHOLDS = sizeof(FADER_THRESHOLDS) / sizeof(FADER_
 
 static const int MAX_FADERS = 4;
 
+// A CV fader doesn't need audio-rate updates: process() does its work once
+// every FADER_PROCESS_DIVISION samples (0.67 ms at 48 kHz, far below anything
+// audible), and an output keeps its voltage between writes.
+static const int FADER_PROCESS_DIVISION = 32;
+
 // Everything one column owns. Ids are per column: param/input/output/light
 // `i` all belong to fader `i` (so a 1-fader bank keeps Fader's original ids).
 struct FaderChannel {
@@ -67,8 +72,6 @@ struct FaderChannel {
 struct FaderBank : Module {
     int numFaders;
     FaderChannel channels[MAX_FADERS];
-    // A CV fader doesn't need audio-rate updates: 32 samples is 0.7 ms at
-    // 48 kHz, and an output keeps its voltage between writes.
     dsp::ClockDivider processDivider;
 
     // Shows a slider in volts of its own range (stored normalized, 0..1, so
@@ -102,7 +105,7 @@ struct FaderBank : Module {
             configOutput(i, defaultName(i));
             configBypass(i, i);
         }
-        processDivider.setDivision(32);
+        processDivider.setDivision(FADER_PROCESS_DIVISION);
         updatePortNames();
     }
 

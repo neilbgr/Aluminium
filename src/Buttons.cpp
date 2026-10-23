@@ -13,6 +13,11 @@
 
 static const int NUM_BUTTONS = 2;
 
+// The buttons themselves run every sample (unlike Fader): a 1-sample trigger
+// must not be missed. Only the lights are refreshed once every
+// BUTTON_LIGHT_DIVISION samples (0.33 ms at 48 kHz, far below a UI frame).
+static const int BUTTON_LIGHT_DIVISION = 16;
+
 static const char* BUTTON_MODE_NAMES[NUM_BUTTON_MODES] = {
     "Momentary",
     "Latch",
@@ -32,8 +37,6 @@ struct Buttons : Module {
     static const int MODE_PARAM = NUM_BUTTONS;
 
     ButtonChannel channels[NUM_BUTTONS];
-    // Runs every sample (unlike Fader): a 1-sample trigger must not be
-    // missed. Only the lights are divided.
     dsp::ClockDivider lightDivider;
 
     Buttons() {
@@ -46,7 +49,7 @@ struct Buttons : Module {
             configOutput(i, defaultName(i));
             configBypass(i, i);
         }
-        lightDivider.setDivision(16);
+        lightDivider.setDivision(BUTTON_LIGHT_DIVISION);
         updatePortNames();
     }
 
