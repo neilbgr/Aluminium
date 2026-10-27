@@ -38,28 +38,28 @@
     {
       "slug": "Fader",
       "name": "Fader",
-      "description": "Labeled vertical fader with a CV output in a selectable unipolar or bipolar range, and a CV input (e.g. a MIDI CC) that moves the fader itself, like a motorized fader on a digital mixing desk: whichever of the slider or the input moved last wins",
+      "description": "Labeled vertical fader with a CV output in a selectable unipolar or bipolar range, and a CV input (e.g. a MIDI CC, read in its own range) that moves the fader itself, like a motorized fader on a digital mixing desk: whichever of the slider or the input moved last wins",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
       "tags": ["Controller", "Utility"]
     },
     {
       "slug": "Faders2",
       "name": "Faders2",
-      "description": "Two Fader columns side by side, each with its own label, range, input takeover threshold and light color (set from its slider's right-click menu)",
+      "description": "Two Fader columns side by side, each with its own label, output and input ranges, input takeover threshold and light color (set from its slider's right-click menu)",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
       "tags": ["Controller", "Utility"]
     },
     {
       "slug": "Faders4",
       "name": "Faders4",
-      "description": "Four Fader columns side by side, each with its own label, range, input takeover threshold and light color (set from its slider's right-click menu)",
+      "description": "Four Fader columns side by side, each with its own label, output and input ranges, input takeover threshold and light color (set from its slider's right-click menu)",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#fader-faders2-and-faders4",
       "tags": ["Controller", "Utility"]
     },
     {
       "slug": "Buttons",
       "name": "Buttons",
-      "description": "Two labeled lit buttons, each with a gate/trigger input acting as a remote press: Momentary or Latch gate output, or Toggle trigger mode (input trigger passed through, light tracks a downstream trigger-driven switch's state)",
+      "description": "Two labeled lit buttons, each with a gate/trigger input acting as a remote press: Momentary or Latch gate output, or Toggle trigger mode (input trigger passed through, light tracks a downstream trigger-driven switch's state); selectable on and off light colors",
       "manualUrl": "https://github.com/neilbgr/Aluminium/blob/main/README.md#buttons",
       "tags": ["Controller", "Utility"]
     }

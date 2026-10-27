@@ -12,8 +12,8 @@
 // purely cosmetic, same as PadX's.
 //
 // Fader, Faders2 and Faders4 are the same module (FaderBank) with 1, 2 or 4
-// identical 3HP columns; each column has its own label, range and takeover
-// threshold, set from its slider's right-click menu.
+// identical 3HP columns; each column has its own label, output range, input
+// range and takeover threshold, set from its slider's right-click menu.
 
 struct FaderRange {
     float min;
@@ -31,7 +31,7 @@ static const FaderRange FADER_RANGES[] = {
 };
 static const int NUM_FADER_RANGES = sizeof(FADER_RANGES) / sizeof(FADER_RANGES[0]);
 
-// How far the input has to move (as a fraction of the selected range) before
+// How far the input has to move (as a fraction of its input range) before
 // it takes the fader back from the slider. A 7-bit MIDI CC step is 1/127 of
 // the range (~0.79%), so every option but the last still catches a single
 // CC step.
@@ -59,6 +59,9 @@ static const int FADER_PROCESS_DIVISION = 32;
 // `i` all belong to fader `i` (so a 1-fader bank keeps Fader's original ids).
 struct FaderChannel {
     int rangeIndex = 0;
+    // Range the input is read in: -1 = same as the output (`rangeIndex`), so
+    // e.g. a 0..10 V MIDI CC can sweep a -10..10 V fader end to end.
+    int inputRangeIndex = -1;
     int thresholdIndex = 1;
     FaderTakeover takeover;
     // Set by the slider widget (UI thread) while the mouse holds it.
@@ -126,6 +129,15 @@ struct FaderBank : Module {
         }
     }
 
+    const FaderRange& inputRange(int i) const {
+        int k = channels[i].inputRangeIndex;
+        return k < 0 ? range(i) : FADER_RANGES[k];
+    }
+
+    void setInputRange(int i, int index) {
+        channels[i].inputRangeIndex = clamp(index, -1, NUM_FADER_RANGES - 1);
+    }
+
     void setThreshold(int i, int index) {
         channels[i].thresholdIndex = clamp(index, 0, NUM_FADER_THRESHOLDS - 1);
     }
@@ -160,11 +172,12 @@ struct FaderBank : Module {
         for (int i = 0; i < numFaders; i++) {
             FaderChannel& ch = channels[i];
             const FaderRange& r = range(i);
+            const FaderRange& in = inputRange(i);
             float span = r.max - r.min;
             float slider = params[i].getValue();
             float applied = ch.takeover.step(slider, ch.dragging,
                 inputs[i].isConnected(), inputs[i].getVoltage(),
-                r.min, r.max, FADER_THRESHOLDS[ch.thresholdIndex].fraction * span);
+                in.min, in.max, FADER_THRESHOLDS[ch.thresholdIndex].fraction * (in.max - in.min));
             if (applied != slider) {
                 params[i].setValue(applied);
             }
@@ -183,6 +196,7 @@ struct FaderBank : Module {
             ch.label.toJson(faderJ);
             json_object_set_new(faderJ, "color", json_integer(ch.colorIndex));
             json_object_set_new(faderJ, "range", json_integer(ch.rangeIndex));
+            json_object_set_new(faderJ, "inputRange", json_integer(ch.inputRangeIndex));
             json_object_set_new(faderJ, "threshold", json_integer(ch.thresholdIndex));
             json_array_append_new(fadersJ, faderJ);
         }
@@ -198,6 +212,9 @@ struct FaderBank : Module {
         if (json_t* j = json_object_get(faderJ, "range")) {
             setRange(i, json_integer_value(j));
         }
+        // Absent in patches saved before it existed: same as the output.
+        json_t* inputRangeJ = json_object_get(faderJ, "inputRange");
+        setInputRange(i, inputRangeJ ? json_integer_value(inputRangeJ) : -1);
         if (json_t* j = json_object_get(faderJ, "threshold")) {
             setThreshold(i, json_integer_value(j));
         }
@@ -232,20 +249,26 @@ struct Faders4 : FaderBank {
 };
 
 #ifndef HEADLESS
-// The Range / Input takeover threshold / Light color submenus of fader `i`, shared by its
+// The Output range / Input range / Input takeover threshold / Light color submenus of fader `i`, shared by its
 // slider's right-click menu and (on the single Fader) the module's own.
 static void appendFaderMenu(Menu* menu, FaderBank* bank, int i) {
     std::vector<std::string> rangeNames;
     for (int k = 0; k < NUM_FADER_RANGES; k++) {
         rangeNames.push_back(FADER_RANGES[k].name);
     }
+    std::vector<std::string> inputRangeNames = {"Same as output"};
+    inputRangeNames.insert(inputRangeNames.end(), rangeNames.begin(), rangeNames.end());
     std::vector<std::string> thresholdNames;
     for (int k = 0; k < NUM_FADER_THRESHOLDS; k++) {
         thresholdNames.push_back(FADER_THRESHOLDS[k].name);
     }
-    menu->addChild(createIndexSubmenuItem("Range", rangeNames,
+    menu->addChild(createIndexSubmenuItem("Output range", rangeNames,
         [=]() { return bank->channels[i].rangeIndex; },
         [=](int k) { bank->setRange(i, k); }
+    ));
+    menu->addChild(createIndexSubmenuItem("Input range", inputRangeNames,
+        [=]() { return bank->channels[i].inputRangeIndex + 1; },
+        [=](int k) { bank->setInputRange(i, k - 1); }
     ));
     menu->addChild(createIndexSubmenuItem("Input takeover threshold", thresholdNames,
         [=]() { return bank->channels[i].thresholdIndex; },

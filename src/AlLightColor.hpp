@@ -34,8 +34,9 @@ inline int alLightColorFromJson(json_t* j) {
 }
 
 #ifndef HEADLESS
-inline void alAppendLightColorMenu(Menu* menu, std::function<int()> get, std::function<void(int)> set) {
-    menu->addChild(createIndexSubmenuItem("Light color",
+inline void alAppendLightColorMenu(Menu* menu, std::function<int()> get, std::function<void(int)> set,
+                                   const std::string& text = "Light color") {
+    menu->addChild(createIndexSubmenuItem(text,
         std::vector<std::string>(AL_LIGHT_COLOR_NAMES, AL_LIGHT_COLOR_NAMES + AL_NUM_LIGHT_COLORS),
         get, set
     ));

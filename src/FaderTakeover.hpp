@@ -7,7 +7,7 @@
 //
 // Two owners, and whichever one moved last keeps the fader:
 //   - the input takes over only once its voltage has moved away, by more
-//     than `threshold` (in volts), from the value it had when it last lost
+//     than `threshold` (in input volts), from the value it had when it last lost
 //     the fader (or was first seen). A cable that's merely connected, or a
 //     constant voltage, never moves the fader on its own;
 //   - once in control, the input is followed continuously (so a slow ramp,
@@ -37,7 +37,8 @@ struct FaderTakeover {
     // `slider`: current normalized slider position [0, 1]. `dragging`: the
     // slider is held by the mouse right now (the input never wins while it's
     // held). `inputConnected`/`inputVoltage`: the CV input. `rangeMin`/
-    // `rangeMax`: the voltage range shared by the input and the output.
+    // `rangeMax`: the voltage range the input is read in (the output's own
+    // range is applied by the caller, from the returned position).
     // Returns the slider position to apply (unchanged unless the input owns
     // the fader).
     float step(float slider, bool dragging, bool inputConnected, float inputVoltage,

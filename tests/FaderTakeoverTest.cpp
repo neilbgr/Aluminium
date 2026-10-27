@@ -114,6 +114,20 @@ static void bipolarRangeAndClamp() {
     CHECK(approx(r.slider, 0.f));
 }
 
+// A 0..10 V MIDI CC driving a -10..10 V fader: the input range alone sets
+// the position, the caller maps it onto the output range.
+static void unipolarInputFullTravel() {
+    Rig r;
+    r.slider = 0.5f;
+    r.run(true, 0.f);
+    r.run(true, 10.f);
+    CHECK(approx(r.slider, 1.f));
+    r.run(true, 0.f);
+    CHECK(approx(r.slider, 0.f));
+    r.run(true, 5.f);
+    CHECK(approx(-10.f + r.slider * 20.f, 0.f));
+}
+
 static void disconnectForgetsReference() {
     Rig r;
     r.run(true, 2.f);
@@ -135,6 +149,7 @@ int main() {
     draggingBlocksInput();
     thresholdFiltersNoise();
     bipolarRangeAndClamp();
+    unipolarInputFullTravel();
     disconnectForgetsReference();
     if (failures) {
         std::printf("%d failure(s)\n", failures);

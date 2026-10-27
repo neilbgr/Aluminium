@@ -53,7 +53,7 @@ Right-click any Aluminium module to open its context menu. One entry is identica
 
 ![Aluminium theme submenu](docs/images/Menu_Theme.png)
 
-Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). Fader adds three more; Faders2 and Faders4 have the same three per fader, on each slider's own right-click menu instead (see [Context menus](#context-menus)), and Buttons has a *Light color* entry (plus *Flip light (no trigger)* in Toggle trigger mode) on each button's own right-click menu (see [Buttons](#buttons)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
+Zones adds two more entries of its own (documented under [Zones](#zones)), and Pads adds three more (documented under [Pads](#pads)). Fader adds four more; Faders2 and Faders4 have the same four per fader, on each slider's own right-click menu instead (see [Context menus](#context-menus)), and Buttons has *On color* and *Off color* entries (plus *Flip light (no trigger)* in Toggle trigger mode) on each button's own right-click menu (see [Buttons](#buttons)). PadX has no other entries — its label is edited directly on the panel, not via the menu.
 
 ## Shared conventions
 
@@ -235,9 +235,9 @@ Place it directly to the right of Pads — or to the right of another PadX alrea
 
 Vertical faders, like channel strips on a digital mixing desk: each slider's position is its output voltage, and its CV input — typically a MIDI CC from Core **MIDI-CV** or **MIDI-CC** — moves the slider itself, the way a motorized fader follows a recalled scene. The two never fight: **whichever moved last wins**.
 
-**Fader** (3HP) has one fader, **Faders2** (6HP) two and **Faders4** (12HP) four. Every fader is a complete, independent 3HP column — its own label, input, output, range and takeover threshold — and everything below applies to each of them; they only differ in where their settings live (see [Context menus](#context-menus) below).
+**Fader** (3HP) has one fader, **Faders2** (6HP) two and **Faders4** (12HP) four. Every fader is a complete, independent 3HP column — its own label, input, output, output and input ranges, and takeover threshold — and everything below applies to each of them; they only differ in where their settings live (see [Context menus](#context-menus) below).
 
-- **The input takes over only when it changes.** Patching a cable in, or a voltage that holds still, never moves the slider on its own. Once the input has moved (by more than the takeover threshold, see below), the slider follows it continuously, to the exact position matching its voltage in the selected range.
+- **The input takes over only when it changes.** Patching a cable in, or a voltage that holds still, never moves the slider on its own. Once the input has moved (by more than the takeover threshold, see below), the slider follows it continuously, to the exact position matching its voltage in the input range.
 - **Touching the slider takes it back.** While you hold the slider, the input is ignored. After you let go, the slider keeps your position until the input changes again. The same goes for anything else that moves the slider: a double-click reset, a MIDI-MAP / stoermelder MIDI-CAT mapping, a preset, a randomize.
 - **After a patch load**, the slider keeps its saved position until the input changes (a MIDI-CV CC output reads 0V until its first message arrives, so following it right away would slam the fader to 0).
 
@@ -246,24 +246,27 @@ Vertical faders, like channel strips on a digital mixing desk: each slider's pos
 **Fader cap** — a lit band across the cap marks the slider's position, so it stays readable even zoomed out.
 
 **Inputs**
-- **CV** (one per fader) — the voltage that moves the slider, read in the same range as the output (clamped to it).
+- **CV** (one per fader) — the voltage that moves the slider, read in the *Input range* (by default the same as the output's), clamped to it.
 
 **Outputs**
-- **CV** (one per fader) — the slider's position, in the selected range.
+- **CV** (one per fader) — the slider's position, in the output range (the slider shows its value in volts of that range).
 
 **Settings** (per fader)
-- **Range** — *0 V to 10 V* (default), *0 V to 5 V*, *0 V to 1 V*, *-10 V to 10 V*, *-5 V to 5 V*, *-1 V to 1 V*. In a bipolar range, 0 V is the middle of the travel, and a double-click resets the slider there. Switching range keeps the slider where it is and rescales its voltage.
-- **Input takeover threshold** — how far the input has to move, from where it was when it last lost the slider, before it takes over: *Any change*, *0.1% of range* (default), *0.4% of range* (half a 7-bit MIDI CC step), *2% of range*. Raise it if a noisy source keeps stealing the slider. Once the input is in control, it is followed by any amount.
+- **Output range** — the range of the output, and of the slider itself: *0 V to 10 V* (default), *0 V to 5 V*, *0 V to 1 V*, *-10 V to 10 V*, *-5 V to 5 V*, *-1 V to 1 V*. In a bipolar range, 0 V is the middle of the travel, and a double-click resets the slider there. Switching range keeps the slider where it is and rescales its voltage.
+- **Input range** — the range the input is read in: *Same as output* (default), or any of the six ranges above. The bottom of the input range moves the slider to the bottom of its travel, the top to the top, whatever the output range — e.g. a MIDI CC (0 V to 10 V from MIDI-CV / MIDI-CC) sweeps the fader end to end with *Output range* set to *-10 V to 10 V* and *Input range* set to *0 V to 10 V*. A 7-bit CC has no exact middle value (CC 64 gives +0.08 V in that example); double-click the slider for an exact 0 V.
+- **Input takeover threshold** — how far the input has to move, from where it was when it last lost the slider, before it takes over: *Any change*, *0.1% of range* (default), *0.4% of range* (half a 7-bit MIDI CC step), *2% of range* — of the input range. Raise it if a noisy source keeps stealing the slider. Once the input is in control, it is followed by any amount.
 - **Light color** — the color of the lit band on the fader cap: *White* (default), *Red*, *Orange*, *Yellow*, *Green*, *Cyan*, *Blue*, *Purple* — e.g. to tell faders apart at a glance.
 
 ### Context menus
 
-The three settings are the same menu on every variant — only where it opens differs:
+The four settings are the same menu on every variant — only where it opens differs:
 
 - **Fader** — in the module's context menu (right-click the panel), and also in the slider's own right-click menu.
 - **Faders2 / Faders4** — each fader's settings are in **its slider's** right-click menu, below Rack's usual slider entries. The module's own context menu only has the Aluminium theme.
 
-![Range submenu](docs/images/Fader_Menu_Range.png)
+![Output range submenu](docs/images/Fader_Menu_Range.png)
+
+![Input range submenu](docs/images/Fader_Menu_InputRange.png)
 
 ![Input takeover threshold submenu](docs/images/Fader_Menu_InputTakeoverThreshold.png)
 
@@ -284,9 +287,15 @@ Two lit buttons stacked in one 3HP panel, in the same spirit as [Fader](#fader-f
 
 Switching between Latch and Toggle trigger keeps the light; any change to or from Momentary turns it off. A gate already high when a patch loads isn't taken as a press.
 
-**Light color** — on each button's own right-click menu: *White* (default), *Red*, *Orange*, *Yellow*, *Green*, *Cyan*, *Blue*, *Purple*. Off, a button keeps a faint glow in its color, so you can still see where it is and which one it is.
+![A button's right-click menu in Toggle trigger mode](docs/images/Buttons_Menu_ToggleTrigger.png)
 
-![A button's right-click menu (Toggle trigger mode)](docs/images/Buttons_Menu.png)
+**On color** / **Off color** — on each button's own right-click menu.
+- **On color** — the button's color while on: *White* (default), *Red*, *Orange*, *Yellow*, *Green*, *Cyan*, *Blue*, *Purple*.
+- **Off color** — *Faint glow of on color* (default): off, the button keeps a faint glow in its on color, so you can still see where it is and which one it is. Or any of the eight colors above, lit as brightly as the on color — e.g. red when off and green when on.
+
+![On color submenu](docs/images/Buttons_Menu_OnColor.png)
+
+![Off color submenu](docs/images/Buttons_Menu_OffColor.png)
 
 **Label** — same field as [Fader](#fader-faders2-and-faders4)'s: typed by hand (6 characters), never filled in automatically; it also names the button and its ports (*Button 1* / *Button 2* while empty).
 

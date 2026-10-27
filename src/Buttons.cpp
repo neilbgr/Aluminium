@@ -31,6 +31,9 @@ struct ButtonChannel {
     AlLabel label;
     // Index into AL_LIGHT_COLOR_NAMES (AlLightColor.hpp).
     int colorIndex = 0;
+    // Color while off: -1 = a faint glow of the on color (default), else an
+    // index into AL_LIGHT_COLOR_NAMES, lit as brightly as the on color.
+    int offColorIndex = -1;
 };
 
 struct Buttons : Module {
@@ -99,8 +102,11 @@ struct Buttons : Module {
             outputs[i].setVoltage(logic.step(params[i].getValue() > 0.5f, inputs[i].getVoltage(), args.sampleTime));
             if (updateLights) {
                 // Off isn't fully dark: a faint glow in the button's own
-                // color shows where (and which color) it is.
-                lights[i].setBrightness(logic.state ? 1.f : 0.08f);
+                // color shows where (and which color) it is — or, with an
+                // off color, that color at full brightness (the widget picks
+                // the color, see AlLitButton).
+                bool glow = !logic.state && channels[i].offColorIndex < 0;
+                lights[i].setBrightness(glow ? 0.08f : 1.f);
             }
         }
     }
@@ -113,6 +119,7 @@ struct Buttons : Module {
             json_t* buttonJ = json_object();
             ch.label.toJson(buttonJ);
             json_object_set_new(buttonJ, "color", json_integer(ch.colorIndex));
+            json_object_set_new(buttonJ, "offColor", json_integer(ch.offColorIndex));
             // A momentary state is only ever "held right now" — not saved.
             json_object_set_new(buttonJ, "state", json_boolean(ch.logic.mode != BUTTON_MOMENTARY && ch.logic.state));
             json_array_append_new(buttonsJ, buttonJ);
@@ -131,6 +138,9 @@ struct Buttons : Module {
             ButtonLogic& logic = channels[i].logic;
             channels[i].label.fromJson(buttonJ);
             channels[i].colorIndex = alLightColorFromJson(json_object_get(buttonJ, "color"));
+            // Absent in patches saved before it existed: the faint glow.
+            json_t* offColorJ = json_object_get(buttonJ, "offColor");
+            channels[i].offColorIndex = offColorJ ? clamp((int) json_integer_value(offColorJ), -1, AL_NUM_LIGHT_COLORS - 1) : -1;
             // The mode switch's own value is already loaded (Rack restores
             // params before dataFromJson); apply it before the saved state so
             // process() doesn't see a mode change and clear it.
@@ -166,7 +176,7 @@ struct AlButtonLight : TBase {
 };
 
 // Rack's own LightButton (componentlibrary.hpp) centers the light on the
-// button. Its right-click menu holds the light color and Toggle trigger's
+// button. Its right-click menu holds the on/off colors and Toggle trigger's
 // light resync.
 struct AlLitButton : LightButton<AlButton, AlButtonLight<WhiteLight>> {
     Buttons* buttons() {
@@ -177,7 +187,9 @@ struct AlLitButton : LightButton<AlButton, AlButtonLight<WhiteLight>> {
     void step() override {
         LightButton<AlButton, AlButtonLight<WhiteLight>>::step();
         if (Buttons* mod = buttons()) {
-            alApplyLightColor(light, mod->channels[paramId].colorIndex);
+            const ButtonChannel& ch = mod->channels[paramId];
+            bool off = !ch.logic.state && ch.offColorIndex >= 0;
+            alApplyLightColor(light, off ? ch.offColorIndex : ch.colorIndex);
         }
     }
 
@@ -190,8 +202,15 @@ struct AlLitButton : LightButton<AlButton, AlButtonLight<WhiteLight>> {
         menu->addChild(new MenuSeparator);
         alAppendLightColorMenu(menu,
             [=]() { return mod->channels[i].colorIndex; },
-            [=](int k) { mod->channels[i].colorIndex = k; }
+            [=](int k) { mod->channels[i].colorIndex = k; },
+            "On color"
         );
+        std::vector<std::string> offColorNames = {"Faint glow of on color"};
+        offColorNames.insert(offColorNames.end(), AL_LIGHT_COLOR_NAMES, AL_LIGHT_COLOR_NAMES + AL_NUM_LIGHT_COLORS);
+        menu->addChild(createIndexSubmenuItem("Off color", offColorNames,
+            [=]() { return mod->channels[i].offColorIndex + 1; },
+            [=](int k) { mod->channels[i].offColorIndex = k - 1; }
+        ));
         if (mod->channels[i].logic.mode == BUTTON_TOGGLE_TRIGGER) {
             // Resync the light with a downstream switch toggled from
             // elsewhere, without sending it a trigger.
