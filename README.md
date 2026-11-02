@@ -1,13 +1,12 @@
 # Aluminium — User Manual
 
-**Aluminium** is a collection of modules for VCV Rack / Cardinal built for **live performance with MIDI controllers**, going further than what Rack's core **MIDI-CV** module alone gives you: splitting a MIDI keyboard into independently playable zones, turning velocity- and aftertouch-sensitive pads into fully expressive CV voices, and putting labeled faders and buttons on the panel that a controller's faders, knobs and buttons drive over MIDI — and that the mouse drives just as well. Whichever moved last wins, so a patch mapped to your controllers stays fully playable, and keeps its settings, whether or not they are plugged in.
+**Aluminium** is a collection of VCV Rack / Cardinal modules to get the most out of your MIDI controllers:
+- Split your MIDI keyboard in two, choosing mono or poly for each half.
+- Use your MIDI pads or keyboard keys as triggers, gates or latches.
+- Take advantage of your MIDI pads' velocity, and even their aftertouch, which is often polyphonic.
+- See your MIDI controllers' faders and buttons on screen, and keep using them even when the controller isn't connected.
 
 ![All Aluminium panels, Dark theme](docs/images/AllModules_Dark.png)
-
-- **Zones** turns a single MIDI keyboard into as many independent note-range zones as you want. Chain several Zones modules together (feed one zone's output into the next one's input) and you can cut the keyboard into 3, 4, or more zones — each usable on its own as a polyphonic or true-legato monophonic voice.
-- **Pads** and its expander (**PadX**) exist for live performance with MIDI pad controllers: patch in a controller whose pads are velocity- and/or polyphonic-aftertouch-sensitive, learn each pad once, and every pad becomes its own independent, fully expressive CV voice — gate, velocity, aftertouch, whatever lane you need — with no MIDI-mapping software and no hand-built V/OCT comparison logic. The same trick works just as well on a handful of keys reserved off the end of an ordinary keyboard (after a split, if the rest is still being played melodically), and nothing ties either module to a single input — feed one Pads module from one controller's pads while a Zones output handles another controller's keys, and build a full live rig from several MIDI controllers at once, all inside the same patch. Any cell can also be switched to Latch mode, turning a press into an on/off toggle instead of a hold.
-- **Fader** is a labeled slider that a MIDI CC (or any CV) moves on its own, like a motorized fader on a digital mixing desk — grab it, and it's yours again until the CC moves. **Faders2** and **Faders4** put 2 or 4 of them side by side.
-- **Buttons** does the same for on/off controls: two lit buttons that a gate or trigger can press remotely — momentary, latching, or as a lit indicator in front of a trigger-driven switch.
 
 | Module                 | What it does                                                                    |
 |-------------------------|----------------------------------------------------------------------------------|
@@ -64,6 +63,11 @@ Zones adds two more entries of its own (documented under [Zones](#zones)), and P
 ## Zones
 
 ![Zones panel](docs/images/Zones.png)
+
+Splits your MIDI keyboard in two and sets the mono/polyphonic behaviour of each half separately (or even duophonic, for Moog Subsequent 37 lovers), while still making use of velocity and aftertouch.
+
+> [!TIP]
+> Set your MIDI source module's polyphony to slightly more channels than the number of keys you plan to hold at once: monophonic zones then get a cleaner legato.
 
 Splits one polyphonic MIDI-CV stream into two note-range zones — Zone A (below the split point) and Zone B (at/above it) — each independently switchable between a straight polyphonic passthrough and a single monophonic voice.
 
@@ -142,6 +146,10 @@ Reference: [Moog Subsequent 37 manual (PDF)](https://cdn.inmusicbrands.com/Moog/
 
 ![Pads panel](docs/images/Pads.png)
 
+Whether your source is a MIDI-CV module or a [Zones](#zones) output, assign notes from your keyboard or your pads. No need to configure your MIDI controller: choose latching or not for each pad, as you like, right on the panel. And don't forget you can use velocity, and even aftertouch, with the [PadX](#padx) expander!
+
+Either way, with this module you can start/stop clocks, mute/unmute voices or effects, and trigger anything you want.
+
 Its headline use case is live performance with a MIDI pad controller — an Akai MPD/MPC-style pad grid, a Novation Launchpad Pro, an Ableton Push, or any other velocity- and/or polyphonic-aftertouch-sensitive controller (see Patch ideas below): learn each pad once and it becomes its own independently expressive CV voice.
 
 Technically, it's like Cardinal/Rack core's **MIDI-Gate** module, but driven by a polyphonic V/OCT + GATE cable instead of MIDI directly (typically from Core MIDI-CV, or from one of Zones' zones) — 16 gate outputs, one per learned note. Each output goes high whenever any incoming polyphonic channel currently carries that exact note with its gate high.
@@ -208,6 +216,8 @@ Right-click → **Preset** → **Factory presets** offers ready-made note mappin
 
 ![PadX panel](docs/images/PadX.png)
 
+Make the most of the velocity and aftertouch of your MIDI controller's pads!
+
 A Pads expander: extracts whatever polyphonic cable is patched into its single input (from Core MIDI-CV, or a Zones output) into 16 mono outputs, one per note Pads has learned — output *N* always carries the value of whichever note is currently learned into Pads' cell *N*. The module itself doesn't care which lane that is (Velocity, Aftertouch, Retrigger, or anything else poly) — that's purely a matter of which cable you patch in.
 
 Place it directly to the right of Pads — or to the right of another PadX already chained there (see [Pads](#pads)'s context menu above); add as many instances as you need, one per lane, in any order — they all relay the same mapping onward to whichever others follow them.
@@ -232,6 +242,8 @@ Place it directly to the right of Pads — or to the right of another PadX alrea
 ## Fader, Faders2 and Faders4
 
 ![Fader panel](docs/images/Fader.png) ![Faders2 panel](docs/images/Faders2.png) ![Faders4 panel](docs/images/Faders4.png)
+
+Lets you see what you're doing with your MIDI controllers during a live performance, and also tweak the patch directly as if you had a MIDI controller (which doesn't even need to be plugged in, for nomads on the road). Modulate anything you want with it. You can even pick the fader's light color!
 
 Vertical faders, like channel strips on a digital mixing desk: each slider's position is its output voltage, and its CV input — typically a MIDI CC from Core **MIDI-CV** or **MIDI-CC** — moves the slider itself, the way a motorized fader follows a recalled scene. The two never fight: **whichever moved last wins**.
 
@@ -277,6 +289,8 @@ The four settings are the same menu on every variant — only where it opens dif
 ## Buttons
 
 ![Buttons panel](docs/images/Buttons.png)
+
+Lets you see what you're doing with your MIDI controllers during a live performance, and also tweak the patch directly as if you had a MIDI controller (which doesn't even need to be plugged in, for nomads on the road). Start, trigger or stop anything you want with it. You can even pick the colors of each button!
 
 Two lit buttons stacked in one 3HP panel, in the same spirit as [Fader](#fader-faders2-and-faders4): each button has its own label, gate/trigger input and output, and **the input acts as a remote press of the button** — a rising edge (above 1 V) is a press, a falling edge (below 0.1 V) a release, handled exactly like a click. Both rows are independent.
 
