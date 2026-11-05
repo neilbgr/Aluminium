@@ -188,7 +188,7 @@ See it played: [Moog Subsequent 37 and Meris Mercury X — Cinematic synth perfo
 
 The same piece replayed live in VCV Rack, with [Zones](#zones) in Duo mode standing in for the Sub37's keyboard: [Moog Subsequent 37 Paraphonic - Cinematic synth performance - VCV Rack version](https://www.youtube.com/watch?v=1cj3m3o9Tgw).
 - Download the patch: [`docs/Subsequent37-Duo.vcv`](docs/Subsequent37-Duo.vcv)
-- [Open its diagram in VCV Patch Tools](https://neilbgr.github.io/VcvPatchTools/?url=https://github.com/neilbgr/Aluminium/blob/main/docs/Subsequent37-Duo.vcv)
+- [Open its diagram in Modular Patch Tools](https://neilbgr.github.io/ModularPatchTools/?url=https://github.com/neilbgr/Aluminium/blob/main/docs/Subsequent37-Duo.vcv)
 
 Reference: [Moog Subsequent 37 manual (PDF)](https://cdn.inmusicbrands.com/Moog/Subsequent37/Subsequent_37_Manual_0.pdf): *DUO MODE* and *KB CTRL*, p. 26; *KB PRIORITY*, pp. 42 and 44.
 
